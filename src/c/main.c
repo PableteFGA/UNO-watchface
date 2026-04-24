@@ -16,6 +16,7 @@ static char s_minutes_buf[3];
 static char s_date_buf[3];
 static int s_current_wday = -1;
 static int s_current_hour = -1;
+static bool s_bt_connected = false;
 static int s_hoy_x = 0;
 static int s_hoy_y = 0;
 static int s_hoy_w = 0;
@@ -173,8 +174,8 @@ static void bg_layer_draw(Layer *layer, GContext *ctx) {
     }
 #endif
 
-    // alarm_indicator — same shape as day indicator, reflected on X axis, above hour
-    {
+    // alarm_indicator — visible solo si bluetooth conectado
+    if (s_bt_connected) {
         int hex_y0_tri = sy(74, h);
         int dz_w       = sx(126, w);
         int dz_x       = (w - dz_w) / 2 - 2;
@@ -237,8 +238,8 @@ static void bg_layer_draw(Layer *layer, GContext *ctx) {
     gpath_draw_outline(ctx, border);
     gpath_destroy(border);
 
-    // M (mañana) / T (tarde) — upper-left of hex
-    {
+    // M (mañana) / T (tarde) — solo en modo 12h
+    if (!clock_is_24h_style()) {
         GFont small_font2 = fonts_get_system_font(FONT_KEY_GOTHIC_09);
         int hx = sx(35, w) + 2;
         int hy = sy(76, h) + 4;
@@ -321,6 +322,11 @@ static void update_time(void) {
     }
 }
 
+static void bt_handler(bool connected) {
+    s_bt_connected = connected;
+    layer_mark_dirty(s_bg_layer);
+}
+
 static void tick_handler(struct tm *tick_time, TimeUnits units_changed) {
     update_time();
 }
@@ -393,7 +399,7 @@ static void main_window_load(Window *window) {
     int x_hours   = hex_x0 + hex_w * 10 / 100;
     int x_colon   = x_hours + group_w;
     int x_minutes = x_colon + colon_gap;
-    int x_date    = hex_x0 + time_w + 9 - hex_w * 5 / 100;
+    int x_date    = hex_x0 + time_w - hex_w * 5 / 100 + 9;
 
     int date_y0 = hex_y0 + (hex_h - date_font_h) / 2 + 9;
     int date_h  = date_font_h + 4;
@@ -461,10 +467,15 @@ static void init(void) {
     });
     window_stack_push(s_main_window, true);
     tick_timer_service_subscribe(MINUTE_UNIT, tick_handler);
+    connection_service_subscribe((ConnectionHandlers) {
+        .pebble_app_connection_handler = bt_handler
+    });
+    s_bt_connected = connection_service_peek_pebble_app_connection();
 }
 
 static void deinit(void) {
     tick_timer_service_unsubscribe();
+    connection_service_unsubscribe();
     window_destroy(s_main_window);
 }
 
