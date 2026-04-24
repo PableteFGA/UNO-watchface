@@ -40,7 +40,7 @@ static const GPoint GOLD_BODY_RAW[] = {
     {10,184},{190,184},{194,175},{194,77},{194,64},{132,64},{111,47},{9,47},{6,52},{6,176}
 };
 static const GPoint WHITE_HEX_RAW[] = {
-    {11,115},{32-8,74},{169+8,74},{190,115},{169+8,161},{32-8,161}
+    {11,115},{24,74},{177,74},{190,115},{177,161},{24,161}
 };
 static const GPoint HEX_BORDER_RAW[] = {
     {197,176},{175,226},{26,226},{3,176},{3,52},{25,2},{174,2},{197,51}
@@ -240,7 +240,7 @@ static void bg_layer_draw(Layer *layer, GContext *ctx) {
     // M (mañana) / T (tarde) — upper-left of hex
     {
         GFont small_font2 = fonts_get_system_font(FONT_KEY_GOTHIC_09);
-        int hx = sx(35, w) - 3 + 5;
+        int hx = sx(35, w) + 2;
         int hy = sy(76, h) + 4;
         graphics_context_set_text_color(ctx, GColorBlack);
         if (s_current_hour >= 0 && s_current_hour < 12) {
@@ -390,10 +390,10 @@ static void main_window_load(Window *window) {
     int time_w    = hex_w - date_w - 4;
     int colon_gap = MAX(5, time_w * 55 / 1000);
     int group_w   = (time_w - colon_gap) / 2;
-    int x_hours   = hex_x0 + hex_w * 10 / 100 - 5 + 5;
+    int x_hours   = hex_x0 + hex_w * 10 / 100;
     int x_colon   = x_hours + group_w;
     int x_minutes = x_colon + colon_gap;
-    int x_date    = hex_x0 + time_w + 4 - hex_w * 5 / 100 - 10 + 10 + 5;
+    int x_date    = hex_x0 + time_w + 9 - hex_w * 5 / 100;
 
     int date_y0 = hex_y0 + (hex_h - date_font_h) / 2 + 9;
     int date_h  = date_font_h + 4;
