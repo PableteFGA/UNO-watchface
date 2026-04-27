@@ -18,10 +18,11 @@ static char s_date_buf[3];
 static int s_current_wday = -1;
 static int s_current_hour = -1;
 static bool s_bt_connected = false;
-static bool s_countdown_mode = false;
+static bool dieciocho_mode = false;
 static AppTimer *s_countdown_timer = NULL;
 static AppTimer *s_blink_timer = NULL;
 static bool s_hoy_blink = false;
+static int s_countdown_token = 0;
 static int s_hoy_x = 0;
 static int s_hoy_y = 0;
 static int s_hoy_w = 0;
@@ -179,8 +180,8 @@ static void bg_layer_draw(Layer *layer, GContext *ctx) {
     }
 #endif
 
-    // alarm_indicator — visible solo si bluetooth conectado
-    if (s_bt_connected) {
+    // alarm_indicator — visible solo si bluetooth conectado y no en countdown
+    if (s_bt_connected && !dieciocho_mode) {
         int hex_y0_tri = sy(74, h);
         int dz_w       = sx(126, w);
         int dz_x       = (w - dz_w) / 2 - 2;
@@ -212,7 +213,7 @@ static void bg_layer_draw(Layer *layer, GContext *ctx) {
     }
 
     // Day indicator triangle — SVG flecha_dias as-is, tip at bottom-left
-    {
+    if (!dieciocho_mode) {
         int hex_y1   = sy(151, h);
         int dz_w     = sx(126, w);
         int dz_x     = (w - dz_w) / 2 - 2;
@@ -243,8 +244,8 @@ static void bg_layer_draw(Layer *layer, GContext *ctx) {
     gpath_draw_outline(ctx, border);
     gpath_destroy(border);
 
-    // M (mañana) / T (tarde) — solo en modo 12h
-    if (!clock_is_24h_style()) {
+    // M (mañana) / T (tarde) — solo en modo 12h y fuera de countdown
+    if (!clock_is_24h_style() && !dieciocho_mode) {
         GFont small_font2 = fonts_get_system_font(FONT_KEY_GOTHIC_09);
         int hx = sx(35, w) + 2;
         int hy = sy(76, h) + 4;
@@ -263,7 +264,7 @@ static void bg_layer_draw(Layer *layer, GContext *ctx) {
     // HOY label — above the date display
     GFont small_font = fonts_get_system_font(FONT_KEY_GOTHIC_09);
     graphics_context_set_text_color(ctx, GColorBlack);
-    if (s_hoy_w > 0 && (!s_countdown_mode || s_hoy_blink)) {
+    if (s_hoy_w > 0 && (!dieciocho_mode || s_hoy_blink)) {
         graphics_draw_text(ctx, "HOY",
             small_font,
             GRect(s_hoy_x, s_hoy_y, s_hoy_w, 12),
@@ -314,7 +315,7 @@ static void update_time(void) {
     strftime(s_date_buf,    sizeof(s_date_buf),    "%d", t);
 #endif
 
-    if (!s_countdown_mode) {
+    if (!dieciocho_mode) {
         text_layer_set_text(s_hours_layer,   s_hours_buf);
         text_layer_set_text(s_minutes_layer, s_minutes_buf);
         text_layer_set_text(s_date_layer,    s_date_buf);
@@ -350,15 +351,15 @@ static int days_to_sept18(void) {
 static void blink_timer_callback(void *context) {
     s_hoy_blink = !s_hoy_blink;
     layer_mark_dirty(s_bg_layer);
-    if (s_countdown_mode) {
-        s_blink_timer = app_timer_register(500, blink_timer_callback, NULL);
+    if (dieciocho_mode) {
+        s_blink_timer = app_timer_register(250, blink_timer_callback, NULL);
     } else {
         s_blink_timer = NULL;
     }
 }
 
 static void show_countdown(void) {
-    s_countdown_mode = true;
+    dieciocho_mode = true;
     int days = days_to_sept18();
     int hundreds  = days / 100;
     int remainder = days % 100;
@@ -376,19 +377,22 @@ static void show_countdown(void) {
     // arrancar parpadeo de HOY
     s_hoy_blink = true;
     if (s_blink_timer) app_timer_cancel(s_blink_timer);
-    s_blink_timer = app_timer_register(500, blink_timer_callback, NULL);
+    s_blink_timer = app_timer_register(250, blink_timer_callback, NULL);
     layer_mark_dirty(s_bg_layer);
 }
 
 static void hide_countdown(void) {
-    s_countdown_mode = false;
+    dieciocho_mode = false;
     s_hoy_blink = false;
     if (s_blink_timer) { app_timer_cancel(s_blink_timer); s_blink_timer = NULL; }
     layer_set_hidden(s_colon_layer, false);
     update_time();
+    layer_mark_dirty(s_bg_layer);
 }
 
 static void countdown_timer_callback(void *context) {
+    int token = (int)(intptr_t)context;
+    if (token != s_countdown_token) return;  // callback obsoleto, ignorar
     s_countdown_timer = NULL;
     hide_countdown();
 }
@@ -397,8 +401,10 @@ static void tap_handler(AccelAxisType axis, int32_t direction) {
     if (s_countdown_timer) {
         app_timer_cancel(s_countdown_timer);
     }
+    s_countdown_token++;
     show_countdown();
-    s_countdown_timer = app_timer_register(4000, countdown_timer_callback, NULL);
+    s_countdown_timer = app_timer_register(4000, countdown_timer_callback,
+                                           (void *)(intptr_t)s_countdown_token);
 }
 
 static void bt_handler(bool connected) {
