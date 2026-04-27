@@ -1,5 +1,6 @@
 #include <pebble.h>
 #define MAX(a,b) ((a)>(b)?(a):(b))
+
 //#define DEBUG_SHOW_EIGHTS
 
 static Window *s_main_window;
@@ -17,6 +18,10 @@ static char s_date_buf[3];
 static int s_current_wday = -1;
 static int s_current_hour = -1;
 static bool s_bt_connected = false;
+static bool s_countdown_mode = false;
+static AppTimer *s_countdown_timer = NULL;
+static AppTimer *s_blink_timer = NULL;
+static bool s_hoy_blink = false;
 static int s_hoy_x = 0;
 static int s_hoy_y = 0;
 static int s_hoy_w = 0;
@@ -258,7 +263,7 @@ static void bg_layer_draw(Layer *layer, GContext *ctx) {
     // HOY label — above the date display
     GFont small_font = fonts_get_system_font(FONT_KEY_GOTHIC_09);
     graphics_context_set_text_color(ctx, GColorBlack);
-    if (s_hoy_w > 0) {
+    if (s_hoy_w > 0 && (!s_countdown_mode || s_hoy_blink)) {
         graphics_draw_text(ctx, "HOY",
             small_font,
             GRect(s_hoy_x, s_hoy_y, s_hoy_w, 12),
@@ -309,9 +314,11 @@ static void update_time(void) {
     strftime(s_date_buf,    sizeof(s_date_buf),    "%d", t);
 #endif
 
-    text_layer_set_text(s_hours_layer,   s_hours_buf);
-    text_layer_set_text(s_minutes_layer, s_minutes_buf);
-    text_layer_set_text(s_date_layer,    s_date_buf);
+    if (!s_countdown_mode) {
+        text_layer_set_text(s_hours_layer,   s_hours_buf);
+        text_layer_set_text(s_minutes_layer, s_minutes_buf);
+        text_layer_set_text(s_date_layer,    s_date_buf);
+    }
 
     int new_wday = wday_to_idx(t->tm_wday);
     int new_hour = t->tm_hour;
@@ -320,6 +327,78 @@ static void update_time(void) {
         s_current_hour = new_hour;
         layer_mark_dirty(s_bg_layer);
     }
+}
+
+static int days_to_sept18(void) {
+    time_t now = time(NULL);
+    struct tm *t = localtime(&now);
+    struct tm target = {0};
+    target.tm_year   = t->tm_year;
+    target.tm_mon    = 8;   // septiembre (0-indexed)
+    target.tm_mday   = 18;
+    target.tm_isdst  = -1;
+    time_t t_target  = mktime(&target);
+    int days = (int)((t_target - now) / 86400);
+    if (days < 0) {
+        target.tm_year = t->tm_year + 1;
+        t_target = mktime(&target);
+        days = (int)((t_target - now) / 86400);
+    }
+    return days;
+}
+
+static void blink_timer_callback(void *context) {
+    s_hoy_blink = !s_hoy_blink;
+    layer_mark_dirty(s_bg_layer);
+    if (s_countdown_mode) {
+        s_blink_timer = app_timer_register(500, blink_timer_callback, NULL);
+    } else {
+        s_blink_timer = NULL;
+    }
+}
+
+static void show_countdown(void) {
+    s_countdown_mode = true;
+    int days = days_to_sept18();
+    int hundreds  = days / 100;
+    int remainder = days % 100;
+    if (hundreds > 0) {
+        snprintf(s_hours_buf,   sizeof(s_hours_buf),   "%d",   hundreds);
+    } else {
+        s_hours_buf[0] = '\0';
+    }
+    snprintf(s_minutes_buf, sizeof(s_minutes_buf), "%02d", remainder);
+    snprintf(s_date_buf,    sizeof(s_date_buf),    "18");
+    layer_set_hidden(s_colon_layer, true);
+    text_layer_set_text(s_hours_layer,   s_hours_buf);
+    text_layer_set_text(s_minutes_layer, s_minutes_buf);
+    text_layer_set_text(s_date_layer,    s_date_buf);
+    // arrancar parpadeo de HOY
+    s_hoy_blink = true;
+    if (s_blink_timer) app_timer_cancel(s_blink_timer);
+    s_blink_timer = app_timer_register(500, blink_timer_callback, NULL);
+    layer_mark_dirty(s_bg_layer);
+}
+
+static void hide_countdown(void) {
+    s_countdown_mode = false;
+    s_hoy_blink = false;
+    if (s_blink_timer) { app_timer_cancel(s_blink_timer); s_blink_timer = NULL; }
+    layer_set_hidden(s_colon_layer, false);
+    update_time();
+}
+
+static void countdown_timer_callback(void *context) {
+    s_countdown_timer = NULL;
+    hide_countdown();
+}
+
+static void tap_handler(AccelAxisType axis, int32_t direction) {
+    if (s_countdown_timer) {
+        app_timer_cancel(s_countdown_timer);
+    }
+    show_countdown();
+    s_countdown_timer = app_timer_register(4000, countdown_timer_callback, NULL);
 }
 
 static void bt_handler(bool connected) {
@@ -440,6 +519,14 @@ static void main_window_load(Window *window) {
 }
 
 static void main_window_unload(Window *window) {
+    if (s_countdown_timer) {
+        app_timer_cancel(s_countdown_timer);
+        s_countdown_timer = NULL;
+    }
+    if (s_blink_timer) {
+        app_timer_cancel(s_blink_timer);
+        s_blink_timer = NULL;
+    }
     text_layer_destroy(s_hours_layer);
     text_layer_destroy(s_minutes_layer);
     layer_destroy(s_colon_layer);
@@ -467,6 +554,7 @@ static void init(void) {
     });
     window_stack_push(s_main_window, true);
     tick_timer_service_subscribe(MINUTE_UNIT, tick_handler);
+    accel_tap_service_subscribe(tap_handler);
     connection_service_subscribe((ConnectionHandlers) {
         .pebble_app_connection_handler = bt_handler
     });
@@ -475,6 +563,7 @@ static void init(void) {
 
 static void deinit(void) {
     tick_timer_service_unsubscribe();
+    accel_tap_service_unsubscribe();
     connection_service_unsubscribe();
     window_destroy(s_main_window);
 }
