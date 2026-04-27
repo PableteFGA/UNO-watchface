@@ -7,8 +7,8 @@ static Window *s_main_window;
 static Layer *s_bg_layer;
 static TextLayer *s_hours_layer;
 static TextLayer *s_minutes_layer;
-static Layer *s_colon_layer;
 static TextLayer *s_date_layer;
+static TextLayer *s_colon_layer;
 static GFont s_digits_font;
 static GFont s_hours_font;
 static GFont s_date_font;
@@ -23,6 +23,15 @@ static AppTimer *s_countdown_timer = NULL;
 static AppTimer *s_blink_timer = NULL;
 static bool s_hoy_blink = false;
 static int s_countdown_token = 0;
+static AppTimer *s_scroll_timer = NULL;
+static int s_scroll_pos = 0;
+static bool s_scrolling = false;
+static char s_scroll_h[3];
+static char s_scroll_m[3];
+
+static const char SCROLL_MSG[] = "DANDO LA HORA - HECHO EN CHILE";
+#define SCROLL_MSG_LEN ((int)(sizeof(SCROLL_MSG) - 1))
+#define SCROLL_INTERVAL_MS 150
 static int s_hoy_x = 0;
 static int s_hoy_y = 0;
 static int s_hoy_w = 0;
@@ -133,14 +142,6 @@ static void draw_bottom_star(GContext *ctx, GRect bounds) {
         GTextOverflowModeTrailingEllipsis, GTextAlignmentCenter, NULL);
 }
 
-static void colon_layer_draw(Layer *layer, GContext *ctx) {
-    GRect b = layer_get_bounds(layer);
-    graphics_context_set_fill_color(ctx, GColorBlack);
-    int dot = MAX(3, b.size.w / 2);
-    int cx = (b.size.w - dot) / 2;
-    graphics_fill_rect(ctx, GRect(cx, b.size.h / 3 - dot / 2, dot, dot), 2, GCornersAll);
-    graphics_fill_rect(ctx, GRect(cx, 2 * b.size.h / 3 - dot / 2, dot, dot), 2, GCornersAll);
-}
 
 static void bg_layer_draw(Layer *layer, GContext *ctx) {
     GRect b = layer_get_bounds(layer);
@@ -181,7 +182,11 @@ static void bg_layer_draw(Layer *layer, GContext *ctx) {
 #endif
 
     // alarm_indicator — visible solo si bluetooth conectado y no en countdown
+#ifdef DEBUG_SHOW_EIGHTS
+    if (!dieciocho_mode) {
+#else
     if (s_bt_connected && !dieciocho_mode) {
+#endif
         int hex_y0_tri = sy(74, h);
         int dz_w       = sx(126, w);
         int dz_x       = (w - dz_w) / 2 - 2;
@@ -223,7 +228,9 @@ static void bg_layer_draw(Layer *layer, GContext *ctx) {
         int bot      = hex_y1  + 6;
         graphics_context_set_fill_color(ctx, GColorBlack);
         for (int i = 0; i < 7; i++) {
+#ifndef DEBUG_SHOW_EIGHTS
             if (i != s_current_wday) continue;
+#endif
             int cx = dz_x + i * cell_w_t + cell_w_t / 2;
             GPoint tri[3] = {
                 GPoint(cx,                         bot),
@@ -245,11 +252,23 @@ static void bg_layer_draw(Layer *layer, GContext *ctx) {
     gpath_destroy(border);
 
     // M (mañana) / T (tarde) — solo en modo 12h y fuera de countdown
+#ifdef DEBUG_SHOW_EIGHTS
+    if (!dieciocho_mode) {
+#else
     if (!clock_is_24h_style() && !dieciocho_mode) {
+#endif
         GFont small_font2 = fonts_get_system_font(FONT_KEY_GOTHIC_09);
         int hx = sx(35, w) + 2;
         int hy = sy(76, h) + 4;
         graphics_context_set_text_color(ctx, GColorBlack);
+#ifdef DEBUG_SHOW_EIGHTS
+        graphics_draw_text(ctx, "M", small_font2,
+            GRect(hx, hy, 10, 12),
+            GTextOverflowModeTrailingEllipsis, GTextAlignmentLeft, NULL);
+        graphics_draw_text(ctx, "T", small_font2,
+            GRect(hx + 8, hy, 10, 12),
+            GTextOverflowModeTrailingEllipsis, GTextAlignmentLeft, NULL);
+#else
         if (s_current_hour >= 0 && s_current_hour < 12) {
             graphics_draw_text(ctx, "M", small_font2,
                 GRect(hx, hy, 10, 12),
@@ -259,6 +278,7 @@ static void bg_layer_draw(Layer *layer, GContext *ctx) {
                 GRect(hx + 8, hy, 10, 12),
                 GTextOverflowModeTrailingEllipsis, GTextAlignmentLeft, NULL);
         }
+#endif
     }
 
     // HOY label — above the date display
@@ -307,9 +327,9 @@ static void update_time(void) {
     strncpy(s_date_buf,    "88", sizeof(s_date_buf));
 #else
     if (clock_is_24h_style()) {
-        strftime(s_hours_buf,   sizeof(s_hours_buf),   "%H", t);
+        strftime(s_hours_buf, sizeof(s_hours_buf), "%H", t);
     } else {
-        strftime(s_hours_buf,   sizeof(s_hours_buf),   "%I", t);
+        strftime(s_hours_buf, sizeof(s_hours_buf), "%I", t);
     }
     strftime(s_minutes_buf, sizeof(s_minutes_buf), "%M", t);
     strftime(s_date_buf,    sizeof(s_date_buf),    "%d", t);
@@ -370,7 +390,7 @@ static void show_countdown(void) {
     }
     snprintf(s_minutes_buf, sizeof(s_minutes_buf), "%02d", remainder);
     snprintf(s_date_buf,    sizeof(s_date_buf),    "18");
-    layer_set_hidden(s_colon_layer, true);
+    layer_set_hidden(text_layer_get_layer(s_colon_layer), true);
     text_layer_set_text(s_hours_layer,   s_hours_buf);
     text_layer_set_text(s_minutes_layer, s_minutes_buf);
     text_layer_set_text(s_date_layer,    s_date_buf);
@@ -385,7 +405,7 @@ static void hide_countdown(void) {
     dieciocho_mode = false;
     s_hoy_blink = false;
     if (s_blink_timer) { app_timer_cancel(s_blink_timer); s_blink_timer = NULL; }
-    layer_set_hidden(s_colon_layer, false);
+    layer_set_hidden(text_layer_get_layer(s_colon_layer), false);
     update_time();
     layer_mark_dirty(s_bg_layer);
 }
@@ -397,7 +417,59 @@ static void countdown_timer_callback(void *context) {
     hide_countdown();
 }
 
+static void scroll_stop(void) {
+    s_scrolling = false;
+    if (s_scroll_timer) { app_timer_cancel(s_scroll_timer); s_scroll_timer = NULL; }
+    text_layer_set_font(s_hours_layer, s_hours_font);
+    text_layer_set_font(s_minutes_layer, s_digits_font);
+    layer_set_hidden(text_layer_get_layer(s_colon_layer), false);
+    update_time();
+}
+
+static void scroll_step(void *context) {
+    s_scroll_timer = NULL;
+    if (!s_scrolling) return;
+    if (dieciocho_mode) { scroll_stop(); return; }
+
+    // s_scroll_pos starts at -3: message enters desde la derecha slot a slot
+    int j = 0;
+    for (int i = 0; i < 2; i++) {
+        int p = s_scroll_pos + i;
+        if (p >= 0 && p < SCROLL_MSG_LEN) s_scroll_h[j++] = SCROLL_MSG[p];
+    }
+    s_scroll_h[j] = '\0';
+
+    j = 0;
+    for (int i = 2; i < 4; i++) {
+        int p = s_scroll_pos + i;
+        if (p >= 0 && p < SCROLL_MSG_LEN) s_scroll_m[j++] = SCROLL_MSG[p];
+    }
+    s_scroll_m[j] = '\0';
+
+    text_layer_set_text(s_hours_layer, s_scroll_h);
+    text_layer_set_text(s_minutes_layer, s_scroll_m);
+
+    s_scroll_pos++;
+    if (s_scroll_pos >= SCROLL_MSG_LEN) {
+        scroll_stop();
+        return;
+    }
+    s_scroll_timer = app_timer_register(SCROLL_INTERVAL_MS, scroll_step, NULL);
+}
+
+static void scroll_start(void) {
+    if (dieciocho_mode) return;
+    if (s_scrolling) scroll_stop();
+    s_scrolling = true;
+    s_scroll_pos = -3;  // entra 1 char a la vez desde la derecha
+    text_layer_set_font(s_hours_layer, s_hours_font);
+    text_layer_set_font(s_minutes_layer, s_hours_font);
+    layer_set_hidden(text_layer_get_layer(s_colon_layer), true);
+    s_scroll_timer = app_timer_register(SCROLL_INTERVAL_MS, scroll_step, NULL);
+}
+
 static void tap_handler(AccelAxisType axis, int32_t direction) {
+    if (s_scrolling) scroll_stop();
     if (s_countdown_timer) {
         app_timer_cancel(s_countdown_timer);
     }
@@ -469,9 +541,13 @@ static void main_window_load(Window *window) {
 #if defined(PBL_PLATFORM_EMERY)
     int font_h = 51;
     int date_font_h = 24;
+    int colon_gap = 12;
+    int colon_w   = 12;
 #else
     int font_h = 39;
     int date_font_h = 18;
+    int colon_gap = 6;
+    int colon_w   = 13;
 #endif
 
     int t_y0 = hex_y0 + (hex_h - font_h) / 2 - hex_h * 10 / 100 + 9;
@@ -479,7 +555,6 @@ static void main_window_load(Window *window) {
 
     int date_w    = hex_w * 28 / 100;
     int time_w    = hex_w - date_w - 4;
-    int colon_gap = MAX(5, time_w * 55 / 1000);
     int group_w   = (time_w - colon_gap) / 2;
     int x_hours   = hex_x0 + hex_w * 10 / 100;
     int x_colon   = x_hours + group_w;
@@ -496,9 +571,14 @@ static void main_window_load(Window *window) {
     text_layer_set_text_alignment(s_hours_layer, GTextAlignmentRight);
     layer_add_child(window_layer, text_layer_get_layer(s_hours_layer));
 
-    s_colon_layer = layer_create(GRect(x_colon, t_y0, colon_gap, t_h));
-    layer_set_update_proc(s_colon_layer, colon_layer_draw);
-    layer_add_child(window_layer, s_colon_layer);
+    int cl_x = x_colon + colon_gap / 2 - colon_w / 2;
+    s_colon_layer = text_layer_create(GRect(cl_x, t_y0, colon_w, t_h));
+    text_layer_set_background_color(s_colon_layer, GColorClear);
+    text_layer_set_text_color(s_colon_layer, GColorBlack);
+    text_layer_set_font(s_colon_layer, s_hours_font);
+    text_layer_set_text_alignment(s_colon_layer, GTextAlignmentCenter);
+    text_layer_set_text(s_colon_layer, ":");
+    layer_add_child(window_layer, text_layer_get_layer(s_colon_layer));
 
     s_minutes_layer = text_layer_create(GRect(x_minutes, t_y0, group_w, t_h));
     text_layer_set_background_color(s_minutes_layer, GColorClear);
@@ -525,6 +605,11 @@ static void main_window_load(Window *window) {
 }
 
 static void main_window_unload(Window *window) {
+    if (s_scroll_timer) {
+        app_timer_cancel(s_scroll_timer);
+        s_scroll_timer = NULL;
+        s_scrolling = false;
+    }
     if (s_countdown_timer) {
         app_timer_cancel(s_countdown_timer);
         s_countdown_timer = NULL;
@@ -534,8 +619,8 @@ static void main_window_unload(Window *window) {
         s_blink_timer = NULL;
     }
     text_layer_destroy(s_hours_layer);
+    text_layer_destroy(s_colon_layer);
     text_layer_destroy(s_minutes_layer);
-    layer_destroy(s_colon_layer);
     text_layer_destroy(s_date_layer);
     fonts_unload_custom_font(s_digits_font);
     fonts_unload_custom_font(s_hours_font);
@@ -552,11 +637,21 @@ static void main_window_unload(Window *window) {
     }
 }
 
+static void main_window_appear(Window *window) {
+    scroll_start();
+}
+
+static void main_window_disappear(Window *window) {
+    if (s_scrolling) scroll_stop();
+}
+
 static void init(void) {
     s_main_window = window_create();
     window_set_window_handlers(s_main_window, (WindowHandlers) {
-        .load = main_window_load,
-        .unload = main_window_unload
+        .load      = main_window_load,
+        .unload    = main_window_unload,
+        .appear    = main_window_appear,
+        .disappear = main_window_disappear,
     });
     window_stack_push(s_main_window, true);
     tick_timer_service_subscribe(MINUTE_UNIT, tick_handler);

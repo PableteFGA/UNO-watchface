@@ -73,156 +73,128 @@
         {
           "type": "font",
           "name": "DIGITS_32",
-          "file": "digits.ttf",
+          "file": "fonts/digits.ttf",
           "characterRegex": "[0-9:]",
           "targetPlatforms": ["basalt", "aplite"]
         },
         {
           "type": "font",
           "name": "DIGITS_33",
-          "file": "digits.ttf",
+          "file": "fonts/digits.ttf",
           "characterRegex": "[0-9:]",
           "targetPlatforms": ["basalt", "aplite"]
         },
         {
           "type": "font",
           "name": "DIGITS_34",
-          "file": "digits.ttf",
+          "file": "fonts/digits.ttf",
           "characterRegex": "[0-9:]",
           "targetPlatforms": ["basalt", "aplite"]
         },
         {
           "type": "font",
           "name": "DIGITS_35",
-          "file": "digits.ttf",
+          "file": "fonts/digits.ttf",
           "characterRegex": "[0-9:]",
           "targetPlatforms": ["basalt", "aplite"]
         },
         {
           "type": "font",
           "name": "DIGITS_36",
-          "file": "digits.ttf",
+          "file": "fonts/digits.ttf",
           "characterRegex": "[0-9:]",
           "targetPlatforms": ["basalt", "aplite"]
         },
         {
           "type": "font",
           "name": "DIGITS_37",
-          "file": "digits.ttf",
+          "file": "fonts/digits.ttf",
           "characterRegex": "[0-9:]",
           "targetPlatforms": ["basalt", "aplite"]
         },
         {
           "type": "font",
           "name": "DIGITS_38",
-          "file": "digits.ttf",
+          "file": "fonts/digits.ttf",
           "characterRegex": "[0-9:]",
           "targetPlatforms": ["basalt", "aplite"]
         },
         {
           "type": "font",
           "name": "DIGITS_39",
-          "file": "digits.ttf",
-          "characterRegex": "[0-9:]",
+          "file": "fonts/digits.ttf",
+          "characterRegex": "[0-9:A-Z -]",
           "targetPlatforms": ["basalt", "aplite"]
         },
         {
           "type": "font",
           "name": "DIGITS_18",
-          "file": "digits.ttf",
+          "file": "fonts/digits.ttf",
           "characterRegex": "[0-9:]",
           "targetPlatforms": ["basalt", "aplite"]
         },
         {
           "type": "font",
           "name": "DIGITS_44",
-          "file": "digits.ttf",
+          "file": "fonts/digits.ttf",
           "characterRegex": "[0-9:]",
           "targetPlatforms": ["emery"]
         },
         {
           "type": "font",
           "name": "DIGITS_45",
-          "file": "digits.ttf",
+          "file": "fonts/digits.ttf",
           "characterRegex": "[0-9:]",
           "targetPlatforms": ["emery"]
         },
         {
           "type": "font",
           "name": "DIGITS_46",
-          "file": "digits.ttf",
+          "file": "fonts/digits.ttf",
           "characterRegex": "[0-9:]",
           "targetPlatforms": ["emery"]
         },
         {
           "type": "font",
           "name": "DIGITS_47",
-          "file": "digits.ttf",
+          "file": "fonts/digits.ttf",
           "characterRegex": "[0-9:]",
           "targetPlatforms": ["emery"]
         },
         {
           "type": "font",
           "name": "DIGITS_48",
-          "file": "digits.ttf",
+          "file": "fonts/digits.ttf",
           "characterRegex": "[0-9:]",
           "targetPlatforms": ["emery"]
         },
         {
           "type": "font",
           "name": "DIGITS_49",
-          "file": "digits.ttf",
+          "file": "fonts/digits.ttf",
           "characterRegex": "[0-9:]",
           "targetPlatforms": ["emery"]
         },
         {
           "type": "font",
           "name": "DIGITS_50",
-          "file": "digits.ttf",
+          "file": "fonts/digits.ttf",
           "characterRegex": "[0-9:]",
           "targetPlatforms": ["emery"]
         },
         {
           "type": "font",
           "name": "DIGITS_51",
-          "file": "digits.ttf",
-          "characterRegex": "[0-9:]",
+          "file": "fonts/digits.ttf",
+          "characterRegex": "[0-9:A-Z -]",
           "targetPlatforms": ["emery"]
         },
         {
           "type": "font",
           "name": "DIGITS_24",
-          "file": "digits.ttf",
+          "file": "fonts/digits.ttf",
           "characterRegex": "[0-9:]",
           "targetPlatforms": ["emery"]
-        },
-        {
-          "type": "font",
-          "name": "SEG1_51",
-          "file": "fonts/segments_style_1_tuned.ttf",
-          "characterRegex": "[0-9:]",
-          "targetPlatforms": ["emery"]
-        },
-        {
-          "type": "font",
-          "name": "SEG1_24",
-          "file": "fonts/segments_style_1_tuned.ttf",
-          "characterRegex": "[0-9:]",
-          "targetPlatforms": ["emery"]
-        },
-        {
-          "type": "font",
-          "name": "SEG1_39",
-          "file": "fonts/segments_style_1_tuned.ttf",
-          "characterRegex": "[0-9:]",
-          "targetPlatforms": ["basalt", "aplite"]
-        },
-        {
-          "type": "font",
-          "name": "SEG1_18",
-          "file": "fonts/segments_style_1_tuned.ttf",
-          "characterRegex": "[0-9:]",
-          "targetPlatforms": ["basalt", "aplite"]
         }
       ]
     }
