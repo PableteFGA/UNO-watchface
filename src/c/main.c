@@ -239,7 +239,7 @@ static void bg_layer_draw(Layer *layer, GContext *ctx) {
     GPathInfo border_info = {N_BORDER, s_border_pts};
     GPath *border = gpath_create(&border_info);
     graphics_context_set_stroke_color(ctx, GColorPastelYellow);
-    graphics_context_set_stroke_width(ctx, 1);
+    graphics_context_set_stroke_width(ctx, 2);
     gpath_draw_outline(ctx, border);
     gpath_destroy(border);
 
