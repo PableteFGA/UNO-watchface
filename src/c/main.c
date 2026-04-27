@@ -183,9 +183,9 @@ static void bg_layer_draw(Layer *layer, GContext *ctx) {
 
     // alarm_indicator — visible solo si bluetooth conectado y no en countdown
 #ifdef DEBUG_SHOW_EIGHTS
-    if (!dieciocho_mode) {
+    if (!dieciocho_mode && !s_scrolling) {
 #else
-    if (s_bt_connected && !dieciocho_mode) {
+    if (s_bt_connected && !dieciocho_mode && !s_scrolling) {
 #endif
         int hex_y0_tri = sy(74, h);
         int dz_w       = sx(126, w);
@@ -218,7 +218,7 @@ static void bg_layer_draw(Layer *layer, GContext *ctx) {
     }
 
     // Day indicator triangle — SVG flecha_dias as-is, tip at bottom-left
-    if (!dieciocho_mode) {
+    if (!dieciocho_mode && !s_scrolling) {
         int hex_y1   = sy(151, h);
         int dz_w     = sx(126, w);
         int dz_x     = (w - dz_w) / 2 - 2;
@@ -253,9 +253,9 @@ static void bg_layer_draw(Layer *layer, GContext *ctx) {
 
     // M (mañana) / T (tarde) — solo en modo 12h y fuera de countdown
 #ifdef DEBUG_SHOW_EIGHTS
-    if (!dieciocho_mode) {
+    if (!dieciocho_mode && !s_scrolling) {
 #else
-    if (!clock_is_24h_style() && !dieciocho_mode) {
+    if (!clock_is_24h_style() && !dieciocho_mode && !s_scrolling) {
 #endif
         GFont small_font2 = fonts_get_system_font(FONT_KEY_GOTHIC_09);
         int hx = sx(35, w) + 2;
@@ -284,7 +284,7 @@ static void bg_layer_draw(Layer *layer, GContext *ctx) {
     // HOY label — above the date display
     GFont small_font = fonts_get_system_font(FONT_KEY_GOTHIC_09);
     graphics_context_set_text_color(ctx, GColorBlack);
-    if (s_hoy_w > 0 && (!dieciocho_mode || s_hoy_blink)) {
+    if (s_hoy_w > 0 && (!dieciocho_mode || s_hoy_blink) && !s_scrolling) {
         graphics_draw_text(ctx, "HOY",
             small_font,
             GRect(s_hoy_x, s_hoy_y, s_hoy_w, 12),
@@ -423,6 +423,8 @@ static void scroll_stop(void) {
     text_layer_set_font(s_hours_layer, s_hours_font);
     text_layer_set_font(s_minutes_layer, s_digits_font);
     layer_set_hidden(text_layer_get_layer(s_colon_layer), false);
+    layer_set_hidden(text_layer_get_layer(s_date_layer), false);
+    layer_mark_dirty(s_bg_layer);
     update_time();
 }
 
@@ -464,7 +466,11 @@ static void scroll_start(void) {
     s_scroll_pos = -3;  // entra 1 char a la vez desde la derecha
     text_layer_set_font(s_hours_layer, s_hours_font);
     text_layer_set_font(s_minutes_layer, s_hours_font);
+    text_layer_set_text(s_hours_layer, "");
+    text_layer_set_text(s_minutes_layer, "");
     layer_set_hidden(text_layer_get_layer(s_colon_layer), true);
+    layer_set_hidden(text_layer_get_layer(s_date_layer), true);
+    layer_mark_dirty(s_bg_layer);
     s_scroll_timer = app_timer_register(SCROLL_INTERVAL_MS, scroll_step, NULL);
 }
 
