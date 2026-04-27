@@ -1,0 +1,230 @@
+{
+  "name": "uno-watchface",
+  "author": "Pablo Godoy",
+  "version": "1.0.0",
+  "keywords": ["pebble-app"],
+  "private": true,
+  "dependencies": {},
+  "pebble": {
+    "displayName": "UNO Watchface",
+    "uuid": "0d3d1a5d-7077-40a4-ad68-f221b3516856",
+    "sdkVersion": "3",
+    "enableMultiJS": true,
+    "targetPlatforms": ["emery", "basalt", "aplite"],
+    "watchapp": {
+      "watchface": true
+    },
+    "resources": {
+      "media": [
+        {
+          "type": "raw",
+          "name": "UNO_LOGO",
+          "file": "uno_logo.pdc"
+        },
+        {
+          "type": "png",
+          "name": "IMG_UNO",
+          "file": "images/uno.png",
+          "targetPlatforms": ["emery"]
+        },
+        {
+          "type": "png",
+          "name": "IMG_UNO",
+          "file": "images/uno_basalt.png",
+          "targetPlatforms": ["basalt"]
+        },
+
+        {
+          "file": "images/menuicon.png",
+          "menuIcon": true,
+          "name": "MENU_ICON",
+          "type": "bitmap"
+        },
+        
+        {
+          "type": "png",
+          "name": "IMG_UNO",
+          "file": "images/uno_bw.png",
+          "targetPlatforms": ["aplite"]
+        },
+        {
+          "type": "png",
+          "name": "IMG_FACE",
+          "file": "images/face_interior.png"
+        },
+        {
+          "type": "png",
+          "name": "IMG_EYE",
+          "file": "images/eye.png",
+          "targetPlatforms": ["emery"]
+        },
+        {
+          "type": "png",
+          "name": "IMG_EYE",
+          "file": "images/eye_basalt.png",
+          "targetPlatforms": ["basalt"]
+        },
+        {
+          "type": "png",
+          "name": "IMG_EYE",
+          "file": "images/eye_bw.png",
+          "targetPlatforms": ["aplite"]
+        },
+        {
+          "type": "font",
+          "name": "DIGITS_32",
+          "file": "digits.ttf",
+          "characterRegex": "[0-9:]",
+          "targetPlatforms": ["basalt", "aplite"]
+        },
+        {
+          "type": "font",
+          "name": "DIGITS_33",
+          "file": "digits.ttf",
+          "characterRegex": "[0-9:]",
+          "targetPlatforms": ["basalt", "aplite"]
+        },
+        {
+          "type": "font",
+          "name": "DIGITS_34",
+          "file": "digits.ttf",
+          "characterRegex": "[0-9:]",
+          "targetPlatforms": ["basalt", "aplite"]
+        },
+        {
+          "type": "font",
+          "name": "DIGITS_35",
+          "file": "digits.ttf",
+          "characterRegex": "[0-9:]",
+          "targetPlatforms": ["basalt", "aplite"]
+        },
+        {
+          "type": "font",
+          "name": "DIGITS_36",
+          "file": "digits.ttf",
+          "characterRegex": "[0-9:]",
+          "targetPlatforms": ["basalt", "aplite"]
+        },
+        {
+          "type": "font",
+          "name": "DIGITS_37",
+          "file": "digits.ttf",
+          "characterRegex": "[0-9:]",
+          "targetPlatforms": ["basalt", "aplite"]
+        },
+        {
+          "type": "font",
+          "name": "DIGITS_38",
+          "file": "digits.ttf",
+          "characterRegex": "[0-9:]",
+          "targetPlatforms": ["basalt", "aplite"]
+        },
+        {
+          "type": "font",
+          "name": "DIGITS_39",
+          "file": "digits.ttf",
+          "characterRegex": "[0-9:]",
+          "targetPlatforms": ["basalt", "aplite"]
+        },
+        {
+          "type": "font",
+          "name": "DIGITS_18",
+          "file": "digits.ttf",
+          "characterRegex": "[0-9:]",
+          "targetPlatforms": ["basalt", "aplite"]
+        },
+        {
+          "type": "font",
+          "name": "DIGITS_44",
+          "file": "digits.ttf",
+          "characterRegex": "[0-9:]",
+          "targetPlatforms": ["emery"]
+        },
+        {
+          "type": "font",
+          "name": "DIGITS_45",
+          "file": "digits.ttf",
+          "characterRegex": "[0-9:]",
+          "targetPlatforms": ["emery"]
+        },
+        {
+          "type": "font",
+          "name": "DIGITS_46",
+          "file": "digits.ttf",
+          "characterRegex": "[0-9:]",
+          "targetPlatforms": ["emery"]
+        },
+        {
+          "type": "font",
+          "name": "DIGITS_47",
+          "file": "digits.ttf",
+          "characterRegex": "[0-9:]",
+          "targetPlatforms": ["emery"]
+        },
+        {
+          "type": "font",
+          "name": "DIGITS_48",
+          "file": "digits.ttf",
+          "characterRegex": "[0-9:]",
+          "targetPlatforms": ["emery"]
+        },
+        {
+          "type": "font",
+          "name": "DIGITS_49",
+          "file": "digits.ttf",
+          "characterRegex": "[0-9:]",
+          "targetPlatforms": ["emery"]
+        },
+        {
+          "type": "font",
+          "name": "DIGITS_50",
+          "file": "digits.ttf",
+          "characterRegex": "[0-9:]",
+          "targetPlatforms": ["emery"]
+        },
+        {
+          "type": "font",
+          "name": "DIGITS_51",
+          "file": "digits.ttf",
+          "characterRegex": "[0-9:]",
+          "targetPlatforms": ["emery"]
+        },
+        {
+          "type": "font",
+          "name": "DIGITS_24",
+          "file": "digits.ttf",
+          "characterRegex": "[0-9:]",
+          "targetPlatforms": ["emery"]
+        },
+        {
+          "type": "font",
+          "name": "SEG1_51",
+          "file": "fonts/segments_style_1_tuned.ttf",
+          "characterRegex": "[0-9:]",
+          "targetPlatforms": ["emery"]
+        },
+        {
+          "type": "font",
+          "name": "SEG1_24",
+          "file": "fonts/segments_style_1_tuned.ttf",
+          "characterRegex": "[0-9:]",
+          "targetPlatforms": ["emery"]
+        },
+        {
+          "type": "font",
+          "name": "SEG1_39",
+          "file": "fonts/segments_style_1_tuned.ttf",
+          "characterRegex": "[0-9:]",
+          "targetPlatforms": ["basalt", "aplite"]
+        },
+        {
+          "type": "font",
+          "name": "SEG1_18",
+          "file": "fonts/segments_style_1_tuned.ttf",
+          "characterRegex": "[0-9:]",
+          "targetPlatforms": ["basalt", "aplite"]
+        }
+      ]
+    }
+  }
+}
