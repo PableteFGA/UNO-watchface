@@ -2,15 +2,29 @@
   "name": "uno-watchface",
   "author": "Pablo Godoy",
   "version": "1.0.0",
-  "keywords": ["pebble-app"],
+  "keywords": [
+    "pebble-app"
+  ],
   "private": true,
-  "dependencies": {},
+  "dependencies": {
+    "pebble-clay": "^1.0.4"
+  },
   "pebble": {
     "displayName": "UNO Watchface",
     "uuid": "0d3d1a5d-7077-40a4-ad68-f221b3516856",
     "sdkVersion": "3",
     "enableMultiJS": true,
-    "targetPlatforms": ["emery", "basalt", "aplite"],
+    "messageKeys": {
+      "SHOW_WELCOME": 0,
+      "TRANSPARENT_PORTION": 1,
+      "BG_COLOR": 2,
+      "DIAL_SHAPE": 3
+    },
+    "targetPlatforms": [
+      "emery",
+      "basalt",
+      "aplite"
+    ],
     "watchapp": {
       "watchface": true
     },
@@ -25,176 +39,238 @@
           "type": "png",
           "name": "IMG_UNO",
           "file": "images/uno.png",
-          "targetPlatforms": ["emery"]
+          "targetPlatforms": [
+            "emery"
+          ]
         },
         {
           "type": "png",
           "name": "IMG_UNO",
           "file": "images/uno_basalt.png",
-          "targetPlatforms": ["basalt"]
+          "targetPlatforms": [
+            "basalt"
+          ]
         },
-
         {
           "file": "images/menuicon.png",
           "menuIcon": true,
           "name": "MENU_ICON",
           "type": "bitmap"
         },
-        
         {
           "type": "png",
           "name": "IMG_UNO",
           "file": "images/uno_bw.png",
-          "targetPlatforms": ["aplite"]
+          "targetPlatforms": [
+            "aplite"
+          ]
         },
         {
           "type": "png",
           "name": "IMG_FACE",
-          "file": "images/face_interior.png"
-        },
-        {
-          "type": "png",
-          "name": "IMG_EYE",
-          "file": "images/eye.png",
+          "file": "images/face_interior.png",
           "targetPlatforms": ["emery"]
         },
         {
           "type": "png",
-          "name": "IMG_EYE",
-          "file": "images/eye_basalt.png",
+          "name": "IMG_FACE",
+          "file": "images/face_interior_basalt.png",
           "targetPlatforms": ["basalt"]
         },
         {
           "type": "png",
           "name": "IMG_EYE",
+          "file": "images/eye.png",
+          "targetPlatforms": [
+            "emery"
+          ]
+        },
+        {
+          "type": "png",
+          "name": "IMG_EYE",
+          "file": "images/eye_basalt.png",
+          "targetPlatforms": [
+            "basalt"
+          ]
+        },
+        {
+          "type": "png",
+          "name": "IMG_EYE",
           "file": "images/eye_bw.png",
-          "targetPlatforms": ["aplite"]
+          "targetPlatforms": [
+            "aplite"
+          ]
         },
         {
           "type": "font",
           "name": "DIGITS_32",
           "file": "fonts/digits.ttf",
           "characterRegex": "[0-9:]",
-          "targetPlatforms": ["basalt", "aplite"]
+          "targetPlatforms": [
+            "basalt",
+            "aplite"
+          ]
         },
         {
           "type": "font",
           "name": "DIGITS_33",
           "file": "fonts/digits.ttf",
           "characterRegex": "[0-9:]",
-          "targetPlatforms": ["basalt", "aplite"]
+          "targetPlatforms": [
+            "basalt",
+            "aplite"
+          ]
         },
         {
           "type": "font",
           "name": "DIGITS_34",
           "file": "fonts/digits.ttf",
           "characterRegex": "[0-9:]",
-          "targetPlatforms": ["basalt", "aplite"]
+          "targetPlatforms": [
+            "basalt",
+            "aplite"
+          ]
         },
         {
           "type": "font",
           "name": "DIGITS_35",
           "file": "fonts/digits.ttf",
           "characterRegex": "[0-9:]",
-          "targetPlatforms": ["basalt", "aplite"]
+          "targetPlatforms": [
+            "basalt",
+            "aplite"
+          ]
         },
         {
           "type": "font",
           "name": "DIGITS_36",
           "file": "fonts/digits.ttf",
           "characterRegex": "[0-9:]",
-          "targetPlatforms": ["basalt", "aplite"]
+          "targetPlatforms": [
+            "basalt",
+            "aplite"
+          ]
         },
         {
           "type": "font",
           "name": "DIGITS_37",
           "file": "fonts/digits.ttf",
           "characterRegex": "[0-9:]",
-          "targetPlatforms": ["basalt", "aplite"]
+          "targetPlatforms": [
+            "basalt",
+            "aplite"
+          ]
         },
         {
           "type": "font",
           "name": "DIGITS_38",
           "file": "fonts/digits.ttf",
           "characterRegex": "[0-9:]",
-          "targetPlatforms": ["basalt", "aplite"]
+          "targetPlatforms": [
+            "basalt",
+            "aplite"
+          ]
         },
         {
           "type": "font",
           "name": "DIGITS_39",
           "file": "fonts/digits.ttf",
           "characterRegex": "[0-9:A-Z -]",
-          "targetPlatforms": ["basalt", "aplite"]
+          "targetPlatforms": [
+            "basalt",
+            "aplite"
+          ]
         },
         {
           "type": "font",
           "name": "DIGITS_18",
           "file": "fonts/digits.ttf",
           "characterRegex": "[0-9:]",
-          "targetPlatforms": ["basalt", "aplite"]
+          "targetPlatforms": [
+            "basalt",
+            "aplite"
+          ]
         },
         {
           "type": "font",
           "name": "DIGITS_44",
           "file": "fonts/digits.ttf",
           "characterRegex": "[0-9:]",
-          "targetPlatforms": ["emery"]
+          "targetPlatforms": [
+            "emery"
+          ]
         },
         {
           "type": "font",
           "name": "DIGITS_45",
           "file": "fonts/digits.ttf",
           "characterRegex": "[0-9:]",
-          "targetPlatforms": ["emery"]
+          "targetPlatforms": [
+            "emery"
+          ]
         },
         {
           "type": "font",
           "name": "DIGITS_46",
           "file": "fonts/digits.ttf",
           "characterRegex": "[0-9:]",
-          "targetPlatforms": ["emery"]
+          "targetPlatforms": [
+            "emery"
+          ]
         },
         {
           "type": "font",
           "name": "DIGITS_47",
           "file": "fonts/digits.ttf",
           "characterRegex": "[0-9:]",
-          "targetPlatforms": ["emery"]
+          "targetPlatforms": [
+            "emery"
+          ]
         },
         {
           "type": "font",
           "name": "DIGITS_48",
           "file": "fonts/digits.ttf",
           "characterRegex": "[0-9:]",
-          "targetPlatforms": ["emery"]
+          "targetPlatforms": [
+            "emery"
+          ]
         },
         {
           "type": "font",
           "name": "DIGITS_49",
           "file": "fonts/digits.ttf",
           "characterRegex": "[0-9:]",
-          "targetPlatforms": ["emery"]
+          "targetPlatforms": [
+            "emery"
+          ]
         },
         {
           "type": "font",
           "name": "DIGITS_50",
           "file": "fonts/digits.ttf",
           "characterRegex": "[0-9:]",
-          "targetPlatforms": ["emery"]
+          "targetPlatforms": [
+            "emery"
+          ]
         },
         {
           "type": "font",
           "name": "DIGITS_51",
           "file": "fonts/digits.ttf",
           "characterRegex": "[0-9:A-Z -]",
-          "targetPlatforms": ["emery"]
+          "targetPlatforms": [
+            "emery"
+          ]
         },
         {
           "type": "font",
           "name": "DIGITS_24",
           "file": "fonts/digits.ttf",
           "characterRegex": "[0-9:]",
-          "targetPlatforms": ["emery"]
+          "targetPlatforms": [
+            "emery"
+          ]
         }
       ]
     }

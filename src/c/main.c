@@ -3,6 +3,29 @@
 
 //#define DEBUG_SHOW_EIGHTS
 
+// AppMessage keys (coinciden con messageKeys en package.json)
+#ifndef MESSAGE_KEY_SHOW_WELCOME
+#define MESSAGE_KEY_SHOW_WELCOME         0
+#define MESSAGE_KEY_TRANSPARENT_PORTION  1
+#define MESSAGE_KEY_BG_COLOR             2
+#define MESSAGE_KEY_DIAL_SHAPE           3
+#endif
+
+// Persistent storage keys
+#define PKEY_SHOW_WELCOME      0
+#define PKEY_TRANSPARENT       1
+#define PKEY_BG_COLOR          2
+#define PKEY_DIAL_SHAPE        3
+
+#define DIAL_SHAPE_HEX         0
+#define DIAL_SHAPE_RECT        1
+
+// User settings (defaults)
+static bool   s_show_welcome       = true;
+static bool   s_transparent        = true;
+static GColor s_bg_color;
+static int    s_dial_shape         = DIAL_SHAPE_HEX;
+
 static Window *s_main_window;
 static Layer *s_bg_layer;
 static TextLayer *s_hours_layer;
@@ -58,17 +81,23 @@ static const GPoint GOLD_BODY_RAW[] = {
 static const GPoint WHITE_HEX_RAW[] = {
     {11,115},{24,74},{177,74},{190,115},{177,161},{24,161}
 };
+// Bounding rect of WHITE_HEX_RAW: x=[11,190] y=[74,161]
+static const GPoint WHITE_RECT_RAW[] = {
+    {11,74},{190,74},{190,161},{11,161}
+};
 static const GPoint HEX_BORDER_RAW[] = {
     {197,176},{175,226},{26,226},{3,176},{3,52},{25,2},{174,2},{197,51}
 };
 
 #define N_GOLD   10
 #define N_WHITE   6
+#define N_RECT    4
 #define N_BORDER  8
 #define STAR_POINTS 10
 
 static GPoint s_gold_pts[N_GOLD];
 static GPoint s_white_pts[N_WHITE];
+static GPoint s_rect_pts[N_RECT];
 static GPoint s_border_pts[N_BORDER];
 static GPoint s_star_pts[STAR_POINTS];
 
@@ -149,35 +178,61 @@ static void bg_layer_draw(Layer *layer, GContext *ctx) {
 
     scale_pts(s_gold_pts,   GOLD_BODY_RAW,  N_GOLD,   w, h);
     scale_pts(s_white_pts,  WHITE_HEX_RAW,  N_WHITE,  w, h);
+    scale_pts(s_rect_pts,   WHITE_RECT_RAW, N_RECT,   w, h);
     scale_pts(s_border_pts, HEX_BORDER_RAW, N_BORDER, w, h);
 
     // 1. Black background
     graphics_context_set_fill_color(ctx, GColorBlack);
     graphics_fill_rect(ctx, b, 0, GCornerNone);
 
-    // 2. color_face — gray body
+    // 2. color_face — gray body (color configurable, transparente en emery si aplica)
     GPathInfo gold_info = {N_GOLD, s_gold_pts};
     GPath *gold = gpath_create(&gold_info);
-    graphics_context_set_fill_color(ctx, GColorDarkGray);
+#if defined(PBL_PLATFORM_EMERY)
+    GColor body_color = s_transparent ? GColorDarkGray : s_bg_color;
+#elif defined(PBL_PLATFORM_BASALT)
+    GColor body_color = s_bg_color;
+#else
+    GColor body_color = GColorDarkGray;
+#endif
+    graphics_context_set_fill_color(ctx, body_color);
     gpath_draw_filled(ctx, gold);
     gpath_destroy(gold);
 
-    // 3. hex_face — white hexagon (entre color_face y face_interior)
-    GPathInfo white_info = {N_WHITE, s_white_pts};
-    GPath *white_hex = gpath_create(&white_info);
+    // 3. dial face — hexagonal or rectangular
     graphics_context_set_fill_color(ctx, GColorWhite);
     graphics_context_set_stroke_color(ctx, GColorBlack);
     graphics_context_set_stroke_width(ctx, 2);
-    gpath_draw_filled(ctx, white_hex);
-    gpath_draw_outline(ctx, white_hex);
-    gpath_destroy(white_hex);
-
-    // 4. face_interior (emery only)
+    bool use_rect = (s_dial_shape == DIAL_SHAPE_RECT);
 #if defined(PBL_PLATFORM_EMERY)
-    if (s_face_bmp) {
+    if (s_transparent) use_rect = false; // transparent solo disponible en hex
+#endif
+    if (use_rect) {
+        GPathInfo rect_info = {N_RECT, s_rect_pts};
+        GPath *rect_path = gpath_create(&rect_info);
+        gpath_draw_filled(ctx, rect_path);
+        gpath_draw_outline(ctx, rect_path);
+        gpath_destroy(rect_path);
+    } else {
+        GPathInfo white_info = {N_WHITE, s_white_pts};
+        GPath *white_hex = gpath_create(&white_info);
+        gpath_draw_filled(ctx, white_hex);
+        gpath_draw_outline(ctx, white_hex);
+        gpath_destroy(white_hex);
+    }
+
+    // 4. face_interior (emery + basalt, solo en modo transparente)
+#if defined(PBL_PLATFORM_EMERY)
+    if (s_face_bmp && s_transparent) {
         graphics_context_set_compositing_mode(ctx, GCompOpSet);
         graphics_draw_bitmap_in_rect(ctx, s_face_bmp,
             GRect((w - 196) / 2 - 2, sy(49, h) - 7, 196, 144));
+    }
+#elif defined(PBL_PLATFORM_BASALT)
+    if (s_face_bmp && s_transparent) {
+        graphics_context_set_compositing_mode(ctx, GCompOpSet);
+        graphics_draw_bitmap_in_rect(ctx, s_face_bmp,
+            GRect((w - 141) / 2, sy(49, h) - 4, 141, 104));
     }
 #endif
 
@@ -605,7 +660,9 @@ static void main_window_load(Window *window) {
     layer_add_child(window_layer, text_layer_get_layer(s_date_layer));
 
     // face_interior — on top of everything
+#if defined(PBL_PLATFORM_EMERY) || defined(PBL_PLATFORM_BASALT)
     s_face_bmp = gbitmap_create_with_resource(RESOURCE_ID_IMG_FACE);
+#endif
 
     update_time();
 }
@@ -636,15 +693,47 @@ static void main_window_unload(Window *window) {
     bitmap_layer_destroy(s_eye_layer);
     gbitmap_destroy(s_uno_bmp);
     gbitmap_destroy(s_eye_bmp);
+#if defined(PBL_PLATFORM_EMERY) || defined(PBL_PLATFORM_BASALT)
     gbitmap_destroy(s_face_bmp);
+#endif
     if (s_uno_logo) {
         gdraw_command_image_destroy(s_uno_logo);
         s_uno_logo = NULL;
     }
 }
 
+static void inbox_received_cb(DictionaryIterator *iter, void *ctx) {
+    Tuple *t;
+    bool needs_redraw = false;
+
+    t = dict_find(iter, MESSAGE_KEY_SHOW_WELCOME);
+    if (t) {
+        s_show_welcome = (bool)t->value->int32;
+        persist_write_bool(PKEY_SHOW_WELCOME, s_show_welcome);
+    }
+    t = dict_find(iter, MESSAGE_KEY_TRANSPARENT_PORTION);
+    if (t) {
+        s_transparent = (bool)t->value->int32;
+        persist_write_bool(PKEY_TRANSPARENT, s_transparent);
+        needs_redraw = true;
+    }
+    t = dict_find(iter, MESSAGE_KEY_BG_COLOR);
+    if (t) {
+        s_bg_color = GColorFromHEX(t->value->int32);
+        persist_write_int(PKEY_BG_COLOR, t->value->int32);
+        needs_redraw = true;
+    }
+    t = dict_find(iter, MESSAGE_KEY_DIAL_SHAPE);
+    if (t) {
+        s_dial_shape = (int)t->value->int32;
+        persist_write_int(PKEY_DIAL_SHAPE, s_dial_shape);
+        needs_redraw = true;
+    }
+    if (needs_redraw) layer_mark_dirty(s_bg_layer);
+}
+
 static void main_window_appear(Window *window) {
-    scroll_start();
+    if (s_show_welcome) scroll_start();
 }
 
 static void main_window_disappear(Window *window) {
@@ -652,6 +741,19 @@ static void main_window_disappear(Window *window) {
 }
 
 static void init(void) {
+    // Load persisted settings (defaults if first run)
+    s_show_welcome = persist_exists(PKEY_SHOW_WELCOME)
+        ? persist_read_bool(PKEY_SHOW_WELCOME) : true;
+    s_transparent  = persist_exists(PKEY_TRANSPARENT)
+        ? persist_read_bool(PKEY_TRANSPARENT)  : true;
+    s_bg_color = persist_exists(PKEY_BG_COLOR)
+        ? GColorFromHEX(persist_read_int(PKEY_BG_COLOR)) : GColorDarkGray;
+    s_dial_shape = persist_exists(PKEY_DIAL_SHAPE)
+        ? persist_read_int(PKEY_DIAL_SHAPE) : DIAL_SHAPE_HEX;
+
+    app_message_register_inbox_received(inbox_received_cb);
+    app_message_open(256, 64);
+
     s_main_window = window_create();
     window_set_window_handlers(s_main_window, (WindowHandlers) {
         .load      = main_window_load,

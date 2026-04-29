@@ -1,3 +1,8 @@
 /.claude
 /.lock-waf_linux_build
 /build
+
+# Clay / npm / scripts
+/node_modules/
+/package-lock.json
+/scripts/
