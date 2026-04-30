@@ -17,7 +17,7 @@ function buildConfig() {
       messageKey: 'SHOW_WELCOME',
       label: 'Mensaje de bienvenida',
       description: 'Mostrar "DANDO LA HORA – HECHO EN CHILE" al iniciar',
-      defaultValue: true
+      defaultValue: false
     },
     {
       type: 'section',
@@ -41,7 +41,7 @@ function buildDialSection(isEmery, isColor) {
     }
   ];
 
-  if (isEmery) {
+  if (isColor) {
     items.push({
       type: 'toggle',
       messageKey: 'TRANSPARENT_PORTION',
@@ -57,9 +57,9 @@ function buildDialSection(isEmery, isColor) {
       messageKey: 'BG_COLOR',
       label: 'Color de fondo',
       defaultValue: 'DarkGray',
-      sunlight: true
+      sunlight: true,
+      showIf: '!TRANSPARENT_PORTION'
     };
-    if (isEmery) colorItem.showIf = '!TRANSPARENT_PORTION';
     items.push(colorItem);
   }
 
@@ -73,7 +73,7 @@ function buildDialSection(isEmery, isColor) {
       { label: 'Rectangular', value: '1' }
     ]
   };
-  if (isEmery) shapeItem.showIf = '!TRANSPARENT_PORTION';
+  if (isColor) shapeItem.showIf = '!TRANSPARENT_PORTION';
   items.push(shapeItem);
 
   return items;

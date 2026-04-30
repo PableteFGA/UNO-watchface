@@ -10,7 +10,7 @@
     "pebble-clay": "^1.0.4"
   },
   "pebble": {
-    "displayName": "UNO Watchface",
+    "displayName": "El número UNO",
     "uuid": "0d3d1a5d-7077-40a4-ad68-f221b3516856",
     "sdkVersion": "3",
     "enableMultiJS": true,
