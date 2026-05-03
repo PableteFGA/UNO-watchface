@@ -41,6 +41,7 @@ static char s_date_buf[3];
 static int s_current_wday = -1;
 static int s_current_hour = -1;
 static bool s_bt_connected = false;
+static bool s_first_start  = true;
 static bool dieciocho_mode = false;
 static AppTimer *s_countdown_timer = NULL;
 static AppTimer *s_blink_timer = NULL;
@@ -549,6 +550,86 @@ static void tick_handler(struct tm *tick_time, TimeUnits units_changed) {
     update_time();
 }
 
+#ifdef PBL_SPEAKER
+static SpeakerNote *s_song_notes = NULL;
+static uint16_t     s_song_count = 0;
+
+static int read_int(char **pp, int *out) {
+    char *p = *pp;
+    while (*p == ' ' || *p == '\t') p++;
+    if (*p < '0' || *p > '9') return 0;
+    int val = 0;
+    while (*p >= '0' && *p <= '9') { val = val * 10 + (*p - '0'); p++; }
+    *pp = p;
+    *out = val;
+    return 1;
+}
+
+static void song_load(void) {
+    ResHandle rh = resource_get_handle(RESOURCE_ID_SONG_HIMNO);
+    size_t size = resource_size(rh);
+    if (size == 0) return;
+
+    char *buf = malloc(size + 1);
+    if (!buf) return;
+    resource_load(rh, (uint8_t *)buf, size);
+    buf[size] = '\0';
+
+    // Primera pasada: contar líneas de datos (no comentarios, no vacías)
+    uint16_t count = 0;
+    char *p = buf;
+    while (*p) {
+        while (*p == ' ' || *p == '\r') p++;
+        if (*p != '#' && *p != '\n' && *p != '\0') count++;
+        while (*p && *p != '\n') p++;
+        if (*p == '\n') p++;
+    }
+
+    s_song_notes = malloc(count * sizeof(SpeakerNote));
+    if (!s_song_notes) { free(buf); return; }
+
+    // Segunda pasada: parsear cada línea
+    uint16_t idx = 0;
+    p = buf;
+    while (*p && idx < count) {
+        while (*p == ' ' || *p == '\r') p++;
+        if (*p == '#' || *p == '\n') {
+            while (*p && *p != '\n') p++;
+            if (*p == '\n') p++;
+            continue;
+        }
+        int note = 0, ms = 0, vel = 100;
+        int parsed = 0;
+        char *q = p;
+        if (read_int(&q, &note)) {
+            parsed++;
+            if (read_int(&q, &ms)) {
+                parsed++;
+                if (read_int(&q, &vel)) parsed++;
+            }
+        }
+        while (*q && *q != '\n') q++;
+        if (parsed >= 2) {
+            s_song_notes[idx++] = (SpeakerNote){
+                .midi_note   = (uint8_t)note,
+                .waveform    = SpeakerWaveformSquare,
+                .duration_ms = (uint32_t)ms,
+                .velocity    = (uint8_t)(parsed >= 3 ? vel : 100)
+            };
+        }
+        p = q;
+        if (*p == '\n') p++;
+    }
+    s_song_count = idx;
+    free(buf);
+}
+
+static void song_free(void) {
+    if (s_song_notes) { free(s_song_notes); s_song_notes = NULL; }
+    s_song_count = 0;
+}
+#endif
+
 static void main_window_load(Window *window) {
     Layer *window_layer = window_get_root_layer(window);
     GRect bounds = layer_get_bounds(window_layer);
@@ -664,6 +745,10 @@ static void main_window_load(Window *window) {
     s_face_bmp = gbitmap_create_with_resource(RESOURCE_ID_IMG_FACE);
 #endif
 
+#ifdef PBL_SPEAKER
+    song_load();
+#endif
+
     update_time();
 }
 
@@ -700,6 +785,9 @@ static void main_window_unload(Window *window) {
         gdraw_command_image_destroy(s_uno_logo);
         s_uno_logo = NULL;
     }
+#ifdef PBL_SPEAKER
+    song_free();
+#endif
 }
 
 static void inbox_received_cb(DictionaryIterator *iter, void *ctx) {
@@ -734,6 +822,14 @@ static void inbox_received_cb(DictionaryIterator *iter, void *ctx) {
 
 static void main_window_appear(Window *window) {
     if (s_show_welcome) scroll_start();
+#ifdef PBL_SPEAKER
+    if (s_first_start) {
+        s_first_start = false;
+        if (s_song_notes && s_song_count > 0) {
+            speaker_play_notes(s_song_notes, s_song_count, 80);
+        }
+    }
+#endif
 }
 
 static void main_window_disappear(Window *window) {
@@ -771,6 +867,9 @@ static void init(void) {
 }
 
 static void deinit(void) {
+#ifdef PBL_SPEAKER
+    speaker_stop();
+#endif
     tick_timer_service_unsubscribe();
     accel_tap_service_unsubscribe();
     connection_service_unsubscribe();

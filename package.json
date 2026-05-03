@@ -32,6 +32,11 @@
       "media": [
         {
           "type": "raw",
+          "name": "SONG_HIMNO",
+          "file": "songs/himno.txt"
+        },
+        {
+          "type": "raw",
           "name": "UNO_LOGO",
           "file": "uno_logo.pdc"
         },
