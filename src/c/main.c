@@ -1,4 +1,6 @@
 #include <pebble.h>
+#include "dieciocho.h"
+#include "sonidos.h"
 #define MAX(a,b) ((a)>(b)?(a):(b))
 
 //#define DEBUG_SHOW_EIGHTS
@@ -41,21 +43,6 @@ static char s_date_buf[3];
 static int s_current_wday = -1;
 static int s_current_hour = -1;
 static bool s_bt_connected = false;
-static bool s_first_start  = true;
-static bool dieciocho_mode = false;
-static AppTimer *s_countdown_timer = NULL;
-static AppTimer *s_blink_timer = NULL;
-static bool s_hoy_blink = false;
-static int s_countdown_token = 0;
-static AppTimer *s_scroll_timer = NULL;
-static int s_scroll_pos = 0;
-static bool s_scrolling = false;
-static char s_scroll_h[3];
-static char s_scroll_m[3];
-
-static const char SCROLL_MSG[] = "DANDO LA HORA - HECHO EN CHILE";
-#define SCROLL_MSG_LEN ((int)(sizeof(SCROLL_MSG) - 1))
-#define SCROLL_INTERVAL_MS 150
 static int s_hoy_x = 0;
 static int s_hoy_y = 0;
 static int s_hoy_w = 0;
@@ -239,9 +226,9 @@ static void bg_layer_draw(Layer *layer, GContext *ctx) {
 
     // alarm_indicator — visible solo si bluetooth conectado y no en countdown
 #ifdef DEBUG_SHOW_EIGHTS
-    if (!dieciocho_mode && !s_scrolling) {
+    if (!dieciocho_is_active() && !sonidos_is_scrolling()) {
 #else
-    if (s_bt_connected && !dieciocho_mode && !s_scrolling) {
+    if (s_bt_connected && !dieciocho_is_active() && !sonidos_is_scrolling()) {
 #endif
         int hex_y0_tri = sy(74, h);
         int dz_w       = sx(126, w);
@@ -274,7 +261,7 @@ static void bg_layer_draw(Layer *layer, GContext *ctx) {
     }
 
     // Day indicator triangle — SVG flecha_dias as-is, tip at bottom-left
-    if (!dieciocho_mode && !s_scrolling) {
+    if (!dieciocho_is_active() && !sonidos_is_scrolling()) {
         int hex_y1   = sy(151, h);
         int dz_w     = sx(126, w);
         int dz_x     = (w - dz_w) / 2 - 2;
@@ -309,9 +296,9 @@ static void bg_layer_draw(Layer *layer, GContext *ctx) {
 
     // M (mañana) / T (tarde) — solo en modo 12h y fuera de countdown
 #ifdef DEBUG_SHOW_EIGHTS
-    if (!dieciocho_mode && !s_scrolling) {
+    if (!dieciocho_is_active() && !sonidos_is_scrolling()) {
 #else
-    if (!clock_is_24h_style() && !dieciocho_mode && !s_scrolling) {
+    if (!clock_is_24h_style() && !dieciocho_is_active() && !sonidos_is_scrolling()) {
 #endif
         GFont small_font2 = fonts_get_system_font(FONT_KEY_GOTHIC_09);
         int hx = sx(35, w) + 2;
@@ -340,7 +327,7 @@ static void bg_layer_draw(Layer *layer, GContext *ctx) {
     // HOY label — above the date display
     GFont small_font = fonts_get_system_font(FONT_KEY_GOTHIC_09);
     graphics_context_set_text_color(ctx, GColorBlack);
-    if (s_hoy_w > 0 && (!dieciocho_mode || s_hoy_blink) && !s_scrolling) {
+    if (s_hoy_w > 0 && dieciocho_hoy_visible() && !sonidos_is_scrolling()) {
         graphics_draw_text(ctx, "HOY",
             small_font,
             GRect(s_hoy_x, s_hoy_y, s_hoy_w, 12),
@@ -391,7 +378,7 @@ static void update_time(void) {
     strftime(s_date_buf,    sizeof(s_date_buf),    "%d", t);
 #endif
 
-    if (!dieciocho_mode) {
+    if (!dieciocho_is_active()) {
         text_layer_set_text(s_hours_layer,   s_hours_buf);
         text_layer_set_text(s_minutes_layer, s_minutes_buf);
         text_layer_set_text(s_date_layer,    s_date_buf);
@@ -406,139 +393,9 @@ static void update_time(void) {
     }
 }
 
-static int days_to_sept18(void) {
-    time_t now = time(NULL);
-    struct tm *t = localtime(&now);
-    struct tm target = {0};
-    target.tm_year   = t->tm_year;
-    target.tm_mon    = 8;   // septiembre (0-indexed)
-    target.tm_mday   = 18;
-    target.tm_isdst  = -1;
-    time_t t_target  = mktime(&target);
-    int days = (int)((t_target - now) / 86400);
-    if (days < 0) {
-        target.tm_year = t->tm_year + 1;
-        t_target = mktime(&target);
-        days = (int)((t_target - now) / 86400);
-    }
-    return days;
-}
-
-static void blink_timer_callback(void *context) {
-    s_hoy_blink = !s_hoy_blink;
-    layer_mark_dirty(s_bg_layer);
-    if (dieciocho_mode) {
-        s_blink_timer = app_timer_register(250, blink_timer_callback, NULL);
-    } else {
-        s_blink_timer = NULL;
-    }
-}
-
-static void show_countdown(void) {
-    dieciocho_mode = true;
-    int days = days_to_sept18();
-    int hundreds  = days / 100;
-    int remainder = days % 100;
-    if (hundreds > 0) {
-        snprintf(s_hours_buf,   sizeof(s_hours_buf),   "%d",   hundreds);
-    } else {
-        s_hours_buf[0] = '\0';
-    }
-    snprintf(s_minutes_buf, sizeof(s_minutes_buf), "%02d", remainder);
-    snprintf(s_date_buf,    sizeof(s_date_buf),    "18");
-    layer_set_hidden(text_layer_get_layer(s_colon_layer), true);
-    text_layer_set_text(s_hours_layer,   s_hours_buf);
-    text_layer_set_text(s_minutes_layer, s_minutes_buf);
-    text_layer_set_text(s_date_layer,    s_date_buf);
-    // arrancar parpadeo de HOY
-    s_hoy_blink = true;
-    if (s_blink_timer) app_timer_cancel(s_blink_timer);
-    s_blink_timer = app_timer_register(250, blink_timer_callback, NULL);
-    layer_mark_dirty(s_bg_layer);
-}
-
-static void hide_countdown(void) {
-    dieciocho_mode = false;
-    s_hoy_blink = false;
-    if (s_blink_timer) { app_timer_cancel(s_blink_timer); s_blink_timer = NULL; }
-    layer_set_hidden(text_layer_get_layer(s_colon_layer), false);
-    update_time();
-    layer_mark_dirty(s_bg_layer);
-}
-
-static void countdown_timer_callback(void *context) {
-    int token = (int)(intptr_t)context;
-    if (token != s_countdown_token) return;  // callback obsoleto, ignorar
-    s_countdown_timer = NULL;
-    hide_countdown();
-}
-
-static void scroll_stop(void) {
-    s_scrolling = false;
-    if (s_scroll_timer) { app_timer_cancel(s_scroll_timer); s_scroll_timer = NULL; }
-    text_layer_set_font(s_hours_layer, s_hours_font);
-    text_layer_set_font(s_minutes_layer, s_digits_font);
-    layer_set_hidden(text_layer_get_layer(s_colon_layer), false);
-    layer_set_hidden(text_layer_get_layer(s_date_layer), false);
-    layer_mark_dirty(s_bg_layer);
-    update_time();
-}
-
-static void scroll_step(void *context) {
-    s_scroll_timer = NULL;
-    if (!s_scrolling) return;
-    if (dieciocho_mode) { scroll_stop(); return; }
-
-    // s_scroll_pos starts at -3: message enters desde la derecha slot a slot
-    int j = 0;
-    for (int i = 0; i < 2; i++) {
-        int p = s_scroll_pos + i;
-        if (p >= 0 && p < SCROLL_MSG_LEN) s_scroll_h[j++] = SCROLL_MSG[p];
-    }
-    s_scroll_h[j] = '\0';
-
-    j = 0;
-    for (int i = 2; i < 4; i++) {
-        int p = s_scroll_pos + i;
-        if (p >= 0 && p < SCROLL_MSG_LEN) s_scroll_m[j++] = SCROLL_MSG[p];
-    }
-    s_scroll_m[j] = '\0';
-
-    text_layer_set_text(s_hours_layer, s_scroll_h);
-    text_layer_set_text(s_minutes_layer, s_scroll_m);
-
-    s_scroll_pos++;
-    if (s_scroll_pos >= SCROLL_MSG_LEN) {
-        scroll_stop();
-        return;
-    }
-    s_scroll_timer = app_timer_register(SCROLL_INTERVAL_MS, scroll_step, NULL);
-}
-
-static void scroll_start(void) {
-    if (dieciocho_mode) return;
-    if (s_scrolling) scroll_stop();
-    s_scrolling = true;
-    s_scroll_pos = -3;  // entra 1 char a la vez desde la derecha
-    text_layer_set_font(s_hours_layer, s_hours_font);
-    text_layer_set_font(s_minutes_layer, s_hours_font);
-    text_layer_set_text(s_hours_layer, "");
-    text_layer_set_text(s_minutes_layer, "");
-    layer_set_hidden(text_layer_get_layer(s_colon_layer), true);
-    layer_set_hidden(text_layer_get_layer(s_date_layer), true);
-    layer_mark_dirty(s_bg_layer);
-    s_scroll_timer = app_timer_register(SCROLL_INTERVAL_MS, scroll_step, NULL);
-}
-
 static void tap_handler(AccelAxisType axis, int32_t direction) {
-    if (s_scrolling) scroll_stop();
-    if (s_countdown_timer) {
-        app_timer_cancel(s_countdown_timer);
-    }
-    s_countdown_token++;
-    show_countdown();
-    s_countdown_timer = app_timer_register(4000, countdown_timer_callback,
-                                           (void *)(intptr_t)s_countdown_token);
+    if (sonidos_is_scrolling()) scroll_stop();
+    dieciocho_trigger();
 }
 
 static void bt_handler(bool connected) {
@@ -550,85 +407,6 @@ static void tick_handler(struct tm *tick_time, TimeUnits units_changed) {
     update_time();
 }
 
-#ifdef PBL_SPEAKER
-static SpeakerNote *s_song_notes = NULL;
-static uint16_t     s_song_count = 0;
-
-static int read_int(char **pp, int *out) {
-    char *p = *pp;
-    while (*p == ' ' || *p == '\t') p++;
-    if (*p < '0' || *p > '9') return 0;
-    int val = 0;
-    while (*p >= '0' && *p <= '9') { val = val * 10 + (*p - '0'); p++; }
-    *pp = p;
-    *out = val;
-    return 1;
-}
-
-static void song_load(void) {
-    ResHandle rh = resource_get_handle(RESOURCE_ID_SONG_HIMNO);
-    size_t size = resource_size(rh);
-    if (size == 0) return;
-
-    char *buf = malloc(size + 1);
-    if (!buf) return;
-    resource_load(rh, (uint8_t *)buf, size);
-    buf[size] = '\0';
-
-    // Primera pasada: contar líneas de datos (no comentarios, no vacías)
-    uint16_t count = 0;
-    char *p = buf;
-    while (*p) {
-        while (*p == ' ' || *p == '\r') p++;
-        if (*p != '#' && *p != '\n' && *p != '\0') count++;
-        while (*p && *p != '\n') p++;
-        if (*p == '\n') p++;
-    }
-
-    s_song_notes = malloc(count * sizeof(SpeakerNote));
-    if (!s_song_notes) { free(buf); return; }
-
-    // Segunda pasada: parsear cada línea
-    uint16_t idx = 0;
-    p = buf;
-    while (*p && idx < count) {
-        while (*p == ' ' || *p == '\r') p++;
-        if (*p == '#' || *p == '\n') {
-            while (*p && *p != '\n') p++;
-            if (*p == '\n') p++;
-            continue;
-        }
-        int note = 0, ms = 0, vel = 100;
-        int parsed = 0;
-        char *q = p;
-        if (read_int(&q, &note)) {
-            parsed++;
-            if (read_int(&q, &ms)) {
-                parsed++;
-                if (read_int(&q, &vel)) parsed++;
-            }
-        }
-        while (*q && *q != '\n') q++;
-        if (parsed >= 2) {
-            s_song_notes[idx++] = (SpeakerNote){
-                .midi_note   = (uint8_t)note,
-                .waveform    = SpeakerWaveformSquare,
-                .duration_ms = (uint32_t)ms,
-                .velocity    = (uint8_t)(parsed >= 3 ? vel : 100)
-            };
-        }
-        p = q;
-        if (*p == '\n') p++;
-    }
-    s_song_count = idx;
-    free(buf);
-}
-
-static void song_free(void) {
-    if (s_song_notes) { free(s_song_notes); s_song_notes = NULL; }
-    s_song_count = 0;
-}
-#endif
 
 static void main_window_load(Window *window) {
     Layer *window_layer = window_get_root_layer(window);
@@ -745,27 +523,18 @@ static void main_window_load(Window *window) {
     s_face_bmp = gbitmap_create_with_resource(RESOURCE_ID_IMG_FACE);
 #endif
 
-#ifdef PBL_SPEAKER
-    song_load();
-#endif
+    dieciocho_init(s_hours_layer, s_minutes_layer, s_date_layer, s_colon_layer,
+                   s_bg_layer, s_hours_buf, s_minutes_buf, s_date_buf, update_time);
+    sonidos_init(s_hours_layer, s_minutes_layer, s_colon_layer, s_date_layer,
+                 s_bg_layer, s_hours_font, s_digits_font, update_time);
 
+    sonidos_song_load();
     update_time();
 }
 
 static void main_window_unload(Window *window) {
-    if (s_scroll_timer) {
-        app_timer_cancel(s_scroll_timer);
-        s_scroll_timer = NULL;
-        s_scrolling = false;
-    }
-    if (s_countdown_timer) {
-        app_timer_cancel(s_countdown_timer);
-        s_countdown_timer = NULL;
-    }
-    if (s_blink_timer) {
-        app_timer_cancel(s_blink_timer);
-        s_blink_timer = NULL;
-    }
+    sonidos_teardown();
+    dieciocho_teardown();
     text_layer_destroy(s_hours_layer);
     text_layer_destroy(s_colon_layer);
     text_layer_destroy(s_minutes_layer);
@@ -785,9 +554,7 @@ static void main_window_unload(Window *window) {
         gdraw_command_image_destroy(s_uno_logo);
         s_uno_logo = NULL;
     }
-#ifdef PBL_SPEAKER
-    song_free();
-#endif
+    sonidos_song_free();
 }
 
 static void inbox_received_cb(DictionaryIterator *iter, void *ctx) {
@@ -822,18 +589,11 @@ static void inbox_received_cb(DictionaryIterator *iter, void *ctx) {
 
 static void main_window_appear(Window *window) {
     if (s_show_welcome) scroll_start();
-#ifdef PBL_SPEAKER
-    if (s_first_start) {
-        s_first_start = false;
-        if (s_song_notes && s_song_count > 0) {
-            speaker_play_notes(s_song_notes, s_song_count, 80);
-        }
-    }
-#endif
+    sonidos_song_play_once();
 }
 
 static void main_window_disappear(Window *window) {
-    if (s_scrolling) scroll_stop();
+    if (sonidos_is_scrolling()) scroll_stop();
 }
 
 static void init(void) {
@@ -867,9 +627,7 @@ static void init(void) {
 }
 
 static void deinit(void) {
-#ifdef PBL_SPEAKER
-    speaker_stop();
-#endif
+    sonidos_song_stop();
     tick_timer_service_unsubscribe();
     accel_tap_service_unsubscribe();
     connection_service_unsubscribe();
