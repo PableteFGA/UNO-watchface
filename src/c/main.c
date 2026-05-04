@@ -42,7 +42,10 @@ static char s_minutes_buf[3];
 static char s_date_buf[3];
 static int s_current_wday = -1;
 static int s_current_hour = -1;
-static bool s_bt_connected = false;
+static bool      s_bt_connected   = false;
+static GRect     s_eye_touch_rect;
+static AppTimer *s_touch_timer    = NULL;
+static bool      s_touch_in_eye   = false;
 static int s_hoy_x = 0;
 static int s_hoy_y = 0;
 static int s_hoy_w = 0;
@@ -378,7 +381,7 @@ static void update_time(void) {
     strftime(s_date_buf,    sizeof(s_date_buf),    "%d", t);
 #endif
 
-    if (!dieciocho_is_active()) {
+    if (!dieciocho_is_active() && !sonidos_is_scrolling()) {
         text_layer_set_text(s_hours_layer,   s_hours_buf);
         text_layer_set_text(s_minutes_layer, s_minutes_buf);
         text_layer_set_text(s_date_layer,    s_date_buf);
@@ -430,16 +433,20 @@ static void main_window_load(Window *window) {
     bitmap_layer_set_compositing_mode(s_uno_img_layer, GCompOpSet);
     layer_add_child(window_layer, bitmap_layer_get_layer(s_uno_img_layer));
 
-    // Eye image 
+    // Eye image
     s_eye_bmp = gbitmap_create_with_resource(RESOURCE_ID_IMG_EYE);
 #if defined(PBL_PLATFORM_EMERY)
-    s_eye_layer = bitmap_layer_create(GRect(sx(158, w) - 32, sy(57, h) - 15, 30, 15));
+    GRect eye_rect = GRect(sx(158, w) - 32, sy(57, h) - 15, 30, 15);
 #else
-    s_eye_layer = bitmap_layer_create(GRect(sx(158, w) - 32 + 5, sy(57, h) - 15 + 3, 30, 15));
+    GRect eye_rect = GRect(sx(158, w) - 32 + 5, sy(57, h) - 15 + 3, 30, 15);
 #endif
+    s_eye_layer = bitmap_layer_create(eye_rect);
     bitmap_layer_set_bitmap(s_eye_layer, s_eye_bmp);
     bitmap_layer_set_compositing_mode(s_eye_layer, GCompOpSet);
     layer_add_child(window_layer, bitmap_layer_get_layer(s_eye_layer));
+    // Área táctil: 12px de margen alrededor del ojo
+    s_eye_touch_rect = GRect(eye_rect.origin.x - 12, eye_rect.origin.y - 12,
+                              eye_rect.size.w + 24,  eye_rect.size.h + 24);
 
 #if defined(PBL_PLATFORM_EMERY)
     s_digits_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_DIGITS_50));
@@ -527,12 +534,14 @@ static void main_window_load(Window *window) {
                    s_bg_layer, s_hours_buf, s_minutes_buf, s_date_buf, update_time);
     sonidos_init(s_hours_layer, s_minutes_layer, s_colon_layer, s_date_layer,
                  s_bg_layer, s_hours_font, s_digits_font, update_time);
+    sonidos_set_song_number(3);
 
     sonidos_song_load();
     update_time();
 }
 
 static void main_window_unload(Window *window) {
+    if (s_touch_timer) { app_timer_cancel(s_touch_timer); s_touch_timer = NULL; }
     sonidos_teardown();
     dieciocho_teardown();
     text_layer_destroy(s_hours_layer);
@@ -587,13 +596,68 @@ static void inbox_received_cb(DictionaryIterator *iter, void *ctx) {
     if (needs_redraw) layer_mark_dirty(s_bg_layer);
 }
 
+#if defined(PBL_PLATFORM_EMERY)
+static void up_click_handler(ClickRecognizerRef recognizer, void *context) {
+    toggle_sonidos_mode();
+}
+static void sonidos_click_config_provider(void *context) {
+    window_single_click_subscribe(BUTTON_ID_UP, up_click_handler);
+}
+
+static void toggle_sonidos_mode(void) {
+    vibes_long_pulse();
+    if (sonidos_is_scrolling()) {
+        scroll_stop();
+        sonidos_song_stop();
+    } else {
+        scroll_start();
+        sonidos_song_play();
+    }
+}
+
+static void long_press_callback(void *context) {
+    s_touch_timer = NULL;
+    APP_LOG(APP_LOG_LEVEL_DEBUG, "long_press fired, in_eye=%d", (int)s_touch_in_eye);
+    if (s_touch_in_eye) toggle_sonidos_mode();
+}
+
+static void touch_handler(const TouchEvent *event, void *context) {
+    APP_LOG(APP_LOG_LEVEL_DEBUG, "touch type=%d x=%d y=%d", (int)event->type, (int)event->x, (int)event->y);
+    if (event->type == TouchEvent_Touchdown) {
+        s_touch_in_eye = (event->x >= s_eye_touch_rect.origin.x &&
+                          event->x <  s_eye_touch_rect.origin.x + s_eye_touch_rect.size.w &&
+                          event->y >= s_eye_touch_rect.origin.y &&
+                          event->y <  s_eye_touch_rect.origin.y + s_eye_touch_rect.size.h);
+        APP_LOG(APP_LOG_LEVEL_DEBUG, "touchdown in_eye=%d rect=(%d,%d,%d,%d)",
+                (int)s_touch_in_eye,
+                s_eye_touch_rect.origin.x, s_eye_touch_rect.origin.y,
+                s_eye_touch_rect.size.w,   s_eye_touch_rect.size.h);
+        if (s_touch_in_eye) {
+            s_touch_timer = app_timer_register(600, long_press_callback, NULL);
+        }
+    } else if (event->type == TouchEvent_Liftoff) {
+        s_touch_in_eye = false;
+        if (s_touch_timer) { app_timer_cancel(s_touch_timer); s_touch_timer = NULL; }
+    }
+}
+#endif
+
 static void main_window_appear(Window *window) {
-    if (s_show_welcome) scroll_start();
-    sonidos_song_play_once();
+#if defined(PBL_PLATFORM_EMERY)
+    bool touch_ok = touch_service_is_enabled();
+    APP_LOG(APP_LOG_LEVEL_DEBUG, "touch_service_is_enabled: %d", (int)touch_ok);
+    if (touch_ok) {
+        touch_service_subscribe(touch_handler, NULL);
+        APP_LOG(APP_LOG_LEVEL_DEBUG, "touch subscribed");
+    }
+#endif
 }
 
 static void main_window_disappear(Window *window) {
     if (sonidos_is_scrolling()) scroll_stop();
+#if defined(PBL_PLATFORM_EMERY)
+    touch_service_unsubscribe();
+#endif
 }
 
 static void init(void) {

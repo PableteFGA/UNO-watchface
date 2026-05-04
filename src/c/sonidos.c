@@ -21,6 +21,8 @@ static bool      s_scrolling       = false;
 static int       s_note_idx        = 0;   // nota actual que impulsa el scroll
 static char      s_scroll_h[3];
 static char      s_scroll_m[3];
+static int       s_song_number     = 0;
+static char      s_song_number_buf[4];
 
 // Datos de timing cargados desde himno.txt (disponibles en todas las plataformas)
 static uint32_t *s_note_ms         = NULL;
@@ -42,6 +44,8 @@ void sonidos_init(TextLayer *hours, TextLayer *minutes, TextLayer *colon,
 }
 
 bool sonidos_is_scrolling(void) { return s_scrolling; }
+
+void sonidos_set_song_number(int n) { s_song_number = n; }
 
 void scroll_stop(void) {
     s_scrolling = false;
@@ -102,7 +106,13 @@ void scroll_start(void) {
     text_layer_set_font(s_hours_layer,   s_hours_font);
     text_layer_set_font(s_minutes_layer, s_hours_font);
     layer_set_hidden(text_layer_get_layer(s_colon_layer), true);
-    layer_set_hidden(text_layer_get_layer(s_date_layer),  true);
+    if (s_song_number > 0) {
+        snprintf(s_song_number_buf, sizeof(s_song_number_buf), "%02d", s_song_number);
+        text_layer_set_text(s_date_layer, s_song_number_buf);
+        layer_set_hidden(text_layer_get_layer(s_date_layer), false);
+    } else {
+        layer_set_hidden(text_layer_get_layer(s_date_layer), true);
+    }
     show_scroll_pos();
     layer_mark_dirty(s_bg_layer);
     uint32_t first_ms = (s_note_count_total > 0) ? s_note_ms[0] : SCROLL_FALLBACK_MS;
@@ -134,7 +144,7 @@ static bool         s_first_start = true;
 #endif
 
 void sonidos_song_load(void) {
-    ResHandle rh = resource_get_handle(RESOURCE_ID_SONG_HIMNO);
+    ResHandle rh = resource_get_handle(RESOURCE_ID_SONG_3_HIMNO);
     size_t size = resource_size(rh);
     if (size == 0) return;
 
@@ -234,6 +244,14 @@ void sonidos_song_play_once(void) {
         if (s_song_notes && s_song_count > 0) {
             speaker_play_notes(s_song_notes, s_song_count, 80);
         }
+    }
+#endif
+}
+
+void sonidos_song_play(void) {
+#ifdef PBL_SPEAKER
+    if (s_song_notes && s_song_count > 0) {
+        speaker_play_notes(s_song_notes, s_song_count, 80);
     }
 #endif
 }

@@ -9,6 +9,9 @@ void sonidos_init(TextLayer *hours, TextLayer *minutes, TextLayer *colon,
                   void (*on_stop)(void));
 
 bool sonidos_is_scrolling(void);
+
+// Número de canción activa (se muestra en el lugar del día durante el scroll).
+void sonidos_set_song_number(int n);
 void scroll_start(void);
 
 // Detener el scroll y disparar on_stop.
@@ -26,6 +29,9 @@ void sonidos_song_free(void);
 
 // Reproducir el himno una sola vez al iniciar (llamar en window_appear).
 void sonidos_song_play_once(void);
+
+// Reproducir el himno incondicionalmente (llamar al activar modo sonidos).
+void sonidos_song_play(void);
 
 // Detener reproducción (llamar en deinit).
 void sonidos_song_stop(void);

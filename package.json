@@ -32,8 +32,13 @@
       "media": [
         {
           "type": "raw",
-          "name": "SONG_HIMNO",
-          "file": "songs/himno.txt"
+          "name": "SONG_1_BIP_DIECIOCHERO",
+          "file": "songs/1_bip_dieciochero.txt"
+        },
+        {
+          "type": "raw",
+          "name": "SONG_3_HIMNO",
+          "file": "songs/3_himno.txt"
         },
         {
           "type": "raw",
