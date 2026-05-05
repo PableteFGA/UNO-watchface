@@ -23,6 +23,7 @@
 #define DIAL_SHAPE_RECT        1
 
 // User settings (defaults)
+static int    battery_perc         = 100;
 static bool   s_show_welcome       = true;
 static bool   s_transparent        = true;
 static GColor s_bg_color;
@@ -52,9 +53,13 @@ static int s_hoy_w = 0;
 static GDrawCommandImage *s_uno_logo;
 static BitmapLayer *s_uno_img_layer;
 static BitmapLayer *s_eye_layer;
+static BitmapLayer *s_cuarzo_layer;
+static Layer       *s_cuarzo_cover_layer;
+static int          s_cuarzo_x, s_cuarzo_y, s_cuarzo_w, s_cuarzo_h;
 static GBitmap *s_uno_bmp;
 static GBitmap *s_eye_bmp;
 static GBitmap *s_face_bmp;
+static GBitmap *s_cuarzo_bmp;
 
 #if defined(PBL_PLATFORM_EMERY)
 static const char *DAY_NAMES[] = {"LU","MA","MI","JU","VI","SA","DO"};
@@ -293,6 +298,7 @@ static void bg_layer_draw(Layer *layer, GContext *ctx) {
     GPathInfo border_info = {N_BORDER, s_border_pts};
     GPath *border = gpath_create(&border_info);
     graphics_context_set_stroke_color(ctx, GColorPastelYellow);
+    graphics_context_set_fill_color(ctx, GColorPastelYellow);
     graphics_context_set_stroke_width(ctx, 2);
     gpath_draw_outline(ctx, border);
     gpath_destroy(border);
@@ -411,6 +417,46 @@ static void tick_handler(struct tm *tick_time, TimeUnits units_changed) {
 }
 
 
+#if defined(PBL_PLATFORM_EMERY)
+static void update_cuarzo_cover(void);
+#endif
+
+static void battery_handler(BatteryChargeState state) {
+    battery_perc = state.charge_percent;
+#if defined(PBL_PLATFORM_EMERY)
+    if (s_cuarzo_cover_layer) update_cuarzo_cover();
+#endif
+}
+
+#if defined(PBL_PLATFORM_EMERY)
+static void cuarzo_cover_draw(Layer *layer, GContext *ctx) {
+    GRect bounds = layer_get_bounds(layer);
+    if (bounds.size.w <= 1) return; // sin bloque visible, nada que dibujar
+    int h = bounds.size.h;
+
+    graphics_context_set_fill_color(ctx, GColorBulgarianRose);
+
+    // Bloque principal (desplazado 1px a la derecha para dejar columna de píxeles)
+    graphics_fill_rect(ctx, GRect(1, 0, bounds.size.w - 1, h), 0, GCornerNone);
+
+    // Dos píxeles decorativos en la columna izquierda, separados 14px y centrados
+    int margin = (h - 14) / 2;  // (18 - 14) / 2 = 2px desde cada extremo
+    graphics_fill_rect(ctx, GRect(0, margin - 1,  1, 1), 0, GCornerNone);
+    graphics_fill_rect(ctx, GRect(0, margin + 14, 1, 1), 0, GCornerNone);
+}
+
+static void update_cuarzo_cover(void) {
+    // battery_perc=1  → 10px visibles (mínimo)
+    // battery_perc=100 → toda la imagen visible
+    int pct = battery_perc < 1 ? 1 : (battery_perc > 100 ? 100 : battery_perc);
+    int uncovered = 10 + (pct - 1) * (s_cuarzo_w - 10) / 99;
+    int cover_w   = s_cuarzo_w - uncovered;
+    // Layer 1px más ancho y 1px más a la izquierda para alojar los píxeles decorativos
+    layer_set_frame(s_cuarzo_cover_layer,
+        GRect(s_cuarzo_x + uncovered - 1, s_cuarzo_y, cover_w + 1, s_cuarzo_h));
+}
+#endif
+
 static void main_window_load(Window *window) {
     Layer *window_layer = window_get_root_layer(window);
     GRect bounds = layer_get_bounds(window_layer);
@@ -444,6 +490,26 @@ static void main_window_load(Window *window) {
     bitmap_layer_set_bitmap(s_eye_layer, s_eye_bmp);
     bitmap_layer_set_compositing_mode(s_eye_layer, GCompOpSet);
     layer_add_child(window_layer, bitmap_layer_get_layer(s_eye_layer));
+
+#if defined(PBL_PLATFORM_EMERY)
+    // cuarzo_emery.png: 55x18 px
+    // Ajustar: X_CUARZO (posición horizontal), Y_CUARZO (posición vertical)
+    s_cuarzo_w = 55; s_cuarzo_h = 18;
+    s_cuarzo_x = sx(158, w) - 52;
+    s_cuarzo_y = sy(57, h) - 15 - s_cuarzo_h - 8;
+    s_cuarzo_bmp   = gbitmap_create_with_resource(RESOURCE_ID_IMG_CUARZO);
+    s_cuarzo_layer = bitmap_layer_create(
+        GRect(s_cuarzo_x, s_cuarzo_y, s_cuarzo_w, s_cuarzo_h));
+    bitmap_layer_set_bitmap(s_cuarzo_layer, s_cuarzo_bmp);
+    bitmap_layer_set_compositing_mode(s_cuarzo_layer, GCompOpSet);
+    layer_add_child(window_layer, bitmap_layer_get_layer(s_cuarzo_layer));
+
+    s_cuarzo_cover_layer = layer_create(
+        GRect(s_cuarzo_x, s_cuarzo_y, s_cuarzo_w, s_cuarzo_h));
+    layer_set_update_proc(s_cuarzo_cover_layer, cuarzo_cover_draw);
+    layer_add_child(window_layer, s_cuarzo_cover_layer);
+    update_cuarzo_cover();
+#endif
     // Área táctil: 12px de margen alrededor del ojo
     s_eye_touch_rect = GRect(eye_rect.origin.x - 12, eye_rect.origin.y - 12,
                               eye_rect.size.w + 24,  eye_rect.size.h + 24);
@@ -554,6 +620,11 @@ static void main_window_unload(Window *window) {
     layer_destroy(s_bg_layer);
     bitmap_layer_destroy(s_uno_img_layer);
     bitmap_layer_destroy(s_eye_layer);
+#if defined(PBL_PLATFORM_EMERY)
+    layer_destroy(s_cuarzo_cover_layer);
+    bitmap_layer_destroy(s_cuarzo_layer);
+    gbitmap_destroy(s_cuarzo_bmp);
+#endif
     gbitmap_destroy(s_uno_bmp);
     gbitmap_destroy(s_eye_bmp);
 #if defined(PBL_PLATFORM_EMERY) || defined(PBL_PLATFORM_BASALT)
@@ -597,13 +668,6 @@ static void inbox_received_cb(DictionaryIterator *iter, void *ctx) {
 }
 
 #if defined(PBL_PLATFORM_EMERY)
-static void up_click_handler(ClickRecognizerRef recognizer, void *context) {
-    toggle_sonidos_mode();
-}
-static void sonidos_click_config_provider(void *context) {
-    window_single_click_subscribe(BUTTON_ID_UP, up_click_handler);
-}
-
 static void toggle_sonidos_mode(void) {
     vibes_long_pulse();
     if (sonidos_is_scrolling()) {
@@ -682,6 +746,8 @@ static void init(void) {
         .disappear = main_window_disappear,
     });
     window_stack_push(s_main_window, true);
+    battery_perc = battery_state_service_peek().charge_percent;
+    battery_state_service_subscribe(battery_handler);
     tick_timer_service_subscribe(MINUTE_UNIT, tick_handler);
     accel_tap_service_subscribe(tap_handler);
     connection_service_subscribe((ConnectionHandlers) {
@@ -692,6 +758,7 @@ static void init(void) {
 
 static void deinit(void) {
     sonidos_song_stop();
+    battery_state_service_unsubscribe();
     tick_timer_service_unsubscribe();
     accel_tap_service_unsubscribe();
     connection_service_unsubscribe();

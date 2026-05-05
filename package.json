@@ -97,6 +97,14 @@
         },
         {
           "type": "png",
+          "name": "IMG_CUARZO",
+          "file": "images/cuarzo_emery.png",
+          "targetPlatforms": [
+            "emery"
+          ]
+        },
+        {
+          "type": "png",
           "name": "IMG_EYE",
           "file": "images/eye_basalt.png",
           "targetPlatforms": [
