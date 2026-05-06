@@ -105,6 +105,22 @@
         },
         {
           "type": "png",
+          "name": "IMG_CUARZO",
+          "file": "images/cuarzo_basalt.png",
+          "targetPlatforms": [
+            "basalt"
+          ]
+        },
+        {
+          "type": "png",
+          "name": "IMG_CUARZO",
+          "file": "images/cuarzo_bn.png",
+          "targetPlatforms": [
+            "aplite"
+          ]
+        },
+        {
+          "type": "png",
           "name": "IMG_EYE",
           "file": "images/eye_basalt.png",
           "targetPlatforms": [

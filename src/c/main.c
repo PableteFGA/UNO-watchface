@@ -417,41 +417,38 @@ static void tick_handler(struct tm *tick_time, TimeUnits units_changed) {
 }
 
 
-#if defined(PBL_PLATFORM_EMERY)
+#if defined(PBL_PLATFORM_EMERY) || defined(PBL_PLATFORM_BASALT) || defined(PBL_PLATFORM_APLITE)
 static void update_cuarzo_cover(void);
 #endif
 
 static void battery_handler(BatteryChargeState state) {
     battery_perc = state.charge_percent;
-#if defined(PBL_PLATFORM_EMERY)
+#if defined(PBL_PLATFORM_EMERY) || defined(PBL_PLATFORM_BASALT) || defined(PBL_PLATFORM_APLITE)
     if (s_cuarzo_cover_layer) update_cuarzo_cover();
 #endif
 }
 
-#if defined(PBL_PLATFORM_EMERY)
+#if defined(PBL_PLATFORM_EMERY) || defined(PBL_PLATFORM_BASALT) || defined(PBL_PLATFORM_APLITE)
 static void cuarzo_cover_draw(Layer *layer, GContext *ctx) {
     GRect bounds = layer_get_bounds(layer);
-    if (bounds.size.w <= 1) return; // sin bloque visible, nada que dibujar
+    if (bounds.size.w <= 1) return;
     int h = bounds.size.h;
 
     graphics_context_set_fill_color(ctx, GColorBulgarianRose);
 
-    // Bloque principal (desplazado 1px a la derecha para dejar columna de píxeles)
     graphics_fill_rect(ctx, GRect(1, 0, bounds.size.w - 1, h), 0, GCornerNone);
 
-    // Dos píxeles decorativos en la columna izquierda, separados 14px y centrados
-    int margin = (h - 14) / 2;  // (18 - 14) / 2 = 2px desde cada extremo
-    graphics_fill_rect(ctx, GRect(0, margin - 1,  1, 1), 0, GCornerNone);
-    graphics_fill_rect(ctx, GRect(0, margin + 14, 1, 1), 0, GCornerNone);
+    // Separación proporcional a la altura de la imagen
+    int pixel_sep = h - 4;
+    int margin    = (h - pixel_sep) / 2;
+    graphics_fill_rect(ctx, GRect(0, margin - 1,          1, 1), 0, GCornerNone);
+    graphics_fill_rect(ctx, GRect(0, margin + pixel_sep,  1, 1), 0, GCornerNone);
 }
 
 static void update_cuarzo_cover(void) {
-    // battery_perc=1  → 10px visibles (mínimo)
-    // battery_perc=100 → toda la imagen visible
     int pct = battery_perc < 1 ? 1 : (battery_perc > 100 ? 100 : battery_perc);
     int uncovered = 10 + (pct - 1) * (s_cuarzo_w - 10) / 99;
     int cover_w   = s_cuarzo_w - uncovered;
-    // Layer 1px más ancho y 1px más a la izquierda para alojar los píxeles decorativos
     layer_set_frame(s_cuarzo_cover_layer,
         GRect(s_cuarzo_x + uncovered - 1, s_cuarzo_y, cover_w + 1, s_cuarzo_h));
 }
@@ -491,12 +488,16 @@ static void main_window_load(Window *window) {
     bitmap_layer_set_compositing_mode(s_eye_layer, GCompOpSet);
     layer_add_child(window_layer, bitmap_layer_get_layer(s_eye_layer));
 
+#if defined(PBL_PLATFORM_EMERY) || defined(PBL_PLATFORM_BASALT) || defined(PBL_PLATFORM_APLITE)
 #if defined(PBL_PLATFORM_EMERY)
-    // cuarzo_emery.png: 55x18 px
-    // Ajustar: X_CUARZO (posición horizontal), Y_CUARZO (posición vertical)
     s_cuarzo_w = 55; s_cuarzo_h = 18;
     s_cuarzo_x = sx(158, w) - 52;
     s_cuarzo_y = sy(57, h) - 15 - s_cuarzo_h - 8;
+#else  // basalt y aplite comparten dimensiones 40x13
+    s_cuarzo_w = 40; s_cuarzo_h = 13;
+    s_cuarzo_x = sx(158, w) - 32 + 5 - 10;
+    s_cuarzo_y = sy(57, h) - 15 - s_cuarzo_h - 5;
+#endif
     s_cuarzo_bmp   = gbitmap_create_with_resource(RESOURCE_ID_IMG_CUARZO);
     s_cuarzo_layer = bitmap_layer_create(
         GRect(s_cuarzo_x, s_cuarzo_y, s_cuarzo_w, s_cuarzo_h));
@@ -620,7 +621,7 @@ static void main_window_unload(Window *window) {
     layer_destroy(s_bg_layer);
     bitmap_layer_destroy(s_uno_img_layer);
     bitmap_layer_destroy(s_eye_layer);
-#if defined(PBL_PLATFORM_EMERY)
+#if defined(PBL_PLATFORM_EMERY) || defined(PBL_PLATFORM_BASALT) || defined(PBL_PLATFORM_APLITE)
     layer_destroy(s_cuarzo_cover_layer);
     bitmap_layer_destroy(s_cuarzo_layer);
     gbitmap_destroy(s_cuarzo_bmp);
