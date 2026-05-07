@@ -132,6 +132,8 @@ Esta watchface es una réplica digital de **El número UNO**, el primer reloj di
 
 Desarrollado por Pablo Godoy — réplica del reloj UNO, primer reloj digital fabricado en Chile.
 
+Parte del desarrollo fue asistido por [Claude Code](https://claude.ai/code). La skill [pebble-watchface-agent-skill](https://github.com/coredevices/pebble-watchface-agent-skill) fue utilizada como punto de partida y referencia para el entorno de desarrollo Pebble.
+
 ### Diseño de segmentos
 Los segmentos del display digital están basados en el trabajo de **Michiel de Boer**, compilado en su referencia de diseños de segmentos:
 [All segment designs v1.1](https://www.michieldb.nl/other/segments/All%20segment%20designs%20v1-1.svg)
