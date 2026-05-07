@@ -532,10 +532,17 @@ static void main_window_load(Window *window) {
     int date_w    = hex_w * 28 / 100;
     int time_w    = hex_w - date_w - 4;
     int group_w   = (time_w - colon_gap) / 2;
-    int x_hours   = hex_x0 + hex_w * 10 / 100;
+#if defined(PBL_PLATFORM_EMERY)
+    int time_offset = -3;
+    int date_offset =  4;
+#else
+    int time_offset =  0;
+    int date_offset =  0;
+#endif
+    int x_hours   = hex_x0 + hex_w * 10 / 100 + time_offset;
     int x_colon   = x_hours + group_w;
     int x_minutes = x_colon + colon_gap;
-    int x_date    = hex_x0 + time_w - hex_w * 5 / 100 + 9;
+    int x_date    = hex_x0 + time_w - hex_w * 5 / 100 + 9 + date_offset;
 
     int date_y0 = hex_y0 + (hex_h - date_font_h) / 2 + 9;
     int date_h  = date_font_h + 4;
