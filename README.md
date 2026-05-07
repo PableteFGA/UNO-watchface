@@ -120,6 +120,14 @@ pebble install --phone <ip-del-telefono>
 
 ---
 
+## Reloj original
+
+Esta watchface es una réplica digital de **El número UNO**, el primer reloj digital fabricado en Chile. El reloj original puede adquirirse en:
+
+[dandolahora.cl — El número UNO](https://www.dandolahora.cl/products/prototipo-el-numero-uno-el-primer-reloj-digital-en-la-historia-de-chile)
+
+---
+
 ## Créditos
 
 Desarrollado por Pablo Godoy — réplica del reloj UNO, primer reloj digital fabricado en Chile.
