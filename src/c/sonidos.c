@@ -4,7 +4,7 @@
 
 static const char SCROLL_MSG[] = "DANDO LA HORA - HECHO EN CHILE - ";
 #define SCROLL_MSG_LEN ((int)(sizeof(SCROLL_MSG) - 1))
-#define SCROLL_FALLBACK_MS 150  // usado si el himno no pudo cargarse
+#define SCROLL_FALLBACK_MS 150
 
 static TextLayer *s_hours_layer;
 static TextLayer *s_minutes_layer;
@@ -15,18 +15,18 @@ static GFont      s_hours_font;
 static GFont      s_digits_font;
 static void     (*s_on_stop)(void);
 
-static AppTimer *s_scroll_timer    = NULL;
-static int       s_scroll_pos      = 0;
-static bool      s_scrolling       = false;
-static int       s_note_idx        = 0;   // nota actual que impulsa el scroll
+static AppTimer *s_scroll_timer     = NULL;
+static int       s_scroll_pos       = 0;
+static bool      s_scrolling        = false;
+static int       s_note_idx         = 0;
 static char      s_scroll_h[3];
 static char      s_scroll_m[3];
-static int       s_song_number     = 0;
+static int       s_song_number      = 0;
 static char      s_song_number_buf[4];
 
-// Datos de timing cargados desde himno.txt (disponibles en todas las plataformas)
-static uint32_t *s_note_ms         = NULL;
-static bool     *s_note_silent     = NULL;
+// arrays de timing disponibles en todas las plataformas
+static uint32_t *s_note_ms          = NULL;
+static bool     *s_note_silent      = NULL;
 static uint16_t  s_note_count_total = 0;
 
 void sonidos_init(TextLayer *hours, TextLayer *minutes, TextLayer *colon,
@@ -59,17 +59,14 @@ void scroll_stop(void) {
 }
 
 static void show_scroll_pos(void) {
-    // Muestra 2 chars en cada TextLayer con wraparound circular
     for (int i = 0; i < 2; i++) {
         s_scroll_h[i] = SCROLL_MSG[(s_scroll_pos + i) % SCROLL_MSG_LEN];
     }
     s_scroll_h[2] = '\0';
-
     for (int i = 0; i < 2; i++) {
         s_scroll_m[i] = SCROLL_MSG[(s_scroll_pos + 2 + i) % SCROLL_MSG_LEN];
     }
     s_scroll_m[2] = '\0';
-
     text_layer_set_text(s_hours_layer,   s_scroll_h);
     text_layer_set_text(s_minutes_layer, s_scroll_m);
 }
@@ -79,7 +76,6 @@ static void scroll_step(void *context) {
     if (!s_scrolling) return;
     if (dieciocho_is_active()) { scroll_stop(); return; }
 
-    // La nota s_note_idx acaba de terminar; avanzar si no es silencio
     bool silent = (s_note_count_total > 0) ? s_note_silent[s_note_idx] : false;
     if (!silent) {
         s_scroll_pos = (s_scroll_pos + 1) % SCROLL_MSG_LEN;
@@ -87,13 +83,10 @@ static void scroll_step(void *context) {
     }
 
     s_note_idx++;
-
-    // Si se acabaron las notas, terminar el scroll
     if (s_note_count_total == 0 || s_note_idx >= s_note_count_total) {
         scroll_stop();
         return;
     }
-
     s_scroll_timer = app_timer_register(s_note_ms[s_note_idx], scroll_step, NULL);
 }
 
@@ -124,7 +117,7 @@ void sonidos_teardown(void) {
     s_scrolling = false;
 }
 
-// --- Himno ---
+// --- Reproducción ---
 
 static int read_int(char **pp, int *out) {
     char *p = *pp;
@@ -153,7 +146,7 @@ void sonidos_song_load(void) {
     resource_load(rh, (uint8_t *)buf, size);
     buf[size] = '\0';
 
-    // Primera pasada: contar líneas de datos
+    // primera pasada: contar líneas de datos
     uint16_t count = 0;
     char *p = buf;
     while (*p) {
@@ -164,7 +157,6 @@ void sonidos_song_load(void) {
     }
     if (count == 0) { free(buf); return; }
 
-    // Alocar arrays de timing (todas las plataformas) y de reproducción (solo speaker)
     s_note_ms     = malloc(count * sizeof(uint32_t));
     s_note_silent = malloc(count * sizeof(bool));
 #ifdef PBL_SPEAKER
@@ -183,7 +175,7 @@ void sonidos_song_load(void) {
     }
 #endif
 
-    // Segunda pasada: parsear
+    // segunda pasada: parsear
     uint16_t idx = 0;
     p = buf;
     while (*p && idx < count) {

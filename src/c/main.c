@@ -5,7 +5,6 @@
 
 //#define DEBUG_SHOW_EIGHTS
 
-// AppMessage keys (coinciden con messageKeys en package.json)
 #ifndef MESSAGE_KEY_SHOW_WELCOME
 #define MESSAGE_KEY_SHOW_WELCOME         0
 #define MESSAGE_KEY_TRANSPARENT_PORTION  1
@@ -13,7 +12,6 @@
 #define MESSAGE_KEY_DIAL_SHAPE           3
 #endif
 
-// Persistent storage keys
 #define PKEY_SHOW_WELCOME      0
 #define PKEY_TRANSPARENT       1
 #define PKEY_BG_COLOR          2
@@ -22,15 +20,14 @@
 #define DIAL_SHAPE_HEX         0
 #define DIAL_SHAPE_RECT        1
 
-// User settings (defaults)
-static int    battery_perc         = 100;
-static bool   s_show_welcome       = true;
-static bool   s_transparent        = true;
+static int    battery_perc   = 100;
+static bool   s_show_welcome = true;
+static bool   s_transparent  = true;
 static GColor s_bg_color;
-static int    s_dial_shape         = DIAL_SHAPE_HEX;
+static int    s_dial_shape   = DIAL_SHAPE_HEX;
 
-static Window *s_main_window;
-static Layer *s_bg_layer;
+static Window    *s_main_window;
+static Layer     *s_bg_layer;
 static TextLayer *s_hours_layer;
 static TextLayer *s_minutes_layer;
 static TextLayer *s_date_layer;
@@ -41,8 +38,8 @@ static GFont s_date_font;
 static char s_hours_buf[3];
 static char s_minutes_buf[3];
 static char s_date_buf[3];
-static int s_current_wday = -1;
-static int s_current_hour = -1;
+static int  s_current_wday = -1;
+static int  s_current_hour = -1;
 static bool      s_bt_connected   = false;
 static GRect     s_eye_touch_rect;
 static AppTimer *s_touch_timer    = NULL;
@@ -77,7 +74,6 @@ static const GPoint GOLD_BODY_RAW[] = {
 static const GPoint WHITE_HEX_RAW[] = {
     {11,115},{24,74},{177,74},{190,115},{177,161},{24,161}
 };
-// Bounding rect of WHITE_HEX_RAW: x=[11,190] y=[74,161]
 static const GPoint WHITE_RECT_RAW[] = {
     {11,74},{190,74},{190,161},{11,161}
 };
@@ -97,7 +93,6 @@ static GPoint s_rect_pts[N_RECT];
 static GPoint s_border_pts[N_BORDER];
 static GPoint s_star_pts[STAR_POINTS];
 
-
 static void scale_pts(GPoint *dst, const GPoint *src, int n, int w, int h) {
     for (int i = 0; i < n; i++) {
         dst[i] = GPoint(src[i].x * w / 200, src[i].y * h / 228);
@@ -116,7 +111,7 @@ static int prv_div_round(int32_t value, int32_t divisor) {
 }
 
 static void build_star_points(GPoint *pts, int cx, int cy, int outer_r, int inner_r) {
-    // 0° = arriba con x=cx+sin*r, y=cy-cos*r
+    // ángulo 0° apunta arriba: x = cx + sin*r, y = cy - cos*r
     const int32_t angles_deg[STAR_POINTS] = {
         0, 36, 72, 108, 144, 180, 216, 252, 288, 324
     };
@@ -167,7 +162,6 @@ static void draw_bottom_star(GContext *ctx, GRect bounds) {
         GTextOverflowModeTrailingEllipsis, GTextAlignmentCenter, NULL);
 }
 
-
 static void bg_layer_draw(Layer *layer, GContext *ctx) {
     GRect b = layer_get_bounds(layer);
     int w = b.size.w, h = b.size.h;
@@ -177,11 +171,9 @@ static void bg_layer_draw(Layer *layer, GContext *ctx) {
     scale_pts(s_rect_pts,   WHITE_RECT_RAW, N_RECT,   w, h);
     scale_pts(s_border_pts, HEX_BORDER_RAW, N_BORDER, w, h);
 
-    // 1. Black background
     graphics_context_set_fill_color(ctx, GColorBlack);
     graphics_fill_rect(ctx, b, 0, GCornerNone);
 
-    // 2. color_face — gray body (color configurable, transparente en emery si aplica)
     GPathInfo gold_info = {N_GOLD, s_gold_pts};
     GPath *gold = gpath_create(&gold_info);
 #if defined(PBL_PLATFORM_EMERY)
@@ -195,13 +187,12 @@ static void bg_layer_draw(Layer *layer, GContext *ctx) {
     gpath_draw_filled(ctx, gold);
     gpath_destroy(gold);
 
-    // 3. dial face — hexagonal or rectangular
     graphics_context_set_fill_color(ctx, GColorWhite);
     graphics_context_set_stroke_color(ctx, GColorBlack);
     graphics_context_set_stroke_width(ctx, 2);
     bool use_rect = (s_dial_shape == DIAL_SHAPE_RECT);
 #if defined(PBL_PLATFORM_EMERY)
-    if (s_transparent) use_rect = false; // transparent solo disponible en hex
+    if (s_transparent) use_rect = false;
 #endif
     if (use_rect) {
         GPathInfo rect_info = {N_RECT, s_rect_pts};
@@ -217,7 +208,6 @@ static void bg_layer_draw(Layer *layer, GContext *ctx) {
         gpath_destroy(white_hex);
     }
 
-    // 4. face_interior (emery + basalt, solo en modo transparente)
 #if defined(PBL_PLATFORM_EMERY)
     if (s_face_bmp && s_transparent) {
         graphics_context_set_compositing_mode(ctx, GCompOpSet);
@@ -232,7 +222,7 @@ static void bg_layer_draw(Layer *layer, GContext *ctx) {
     }
 #endif
 
-    // alarm_indicator — visible solo si bluetooth conectado y no en countdown
+    // indicador BT — triángulo visible cuando hay conexión
 #ifdef DEBUG_SHOW_EIGHTS
     if (!dieciocho_is_active() && !sonidos_is_scrolling()) {
 #else
@@ -258,7 +248,6 @@ static void bg_layer_draw(Layer *layer, GContext *ctx) {
         gpath_destroy(ap);
     }
 
-    // 5+. Everything else
     draw_bottom_star(ctx, b);
 
     if (s_uno_logo) {
@@ -268,7 +257,7 @@ static void bg_layer_draw(Layer *layer, GContext *ctx) {
         gdraw_command_image_draw(ctx, s_uno_logo, GPoint(logo_x, logo_y));
     }
 
-    // Day indicator triangle — SVG flecha_dias as-is, tip at bottom-left
+    // triángulo indicador del día actual
     if (!dieciocho_is_active() && !sonidos_is_scrolling()) {
         int hex_y1   = sy(151, h);
         int dz_w     = sx(126, w);
@@ -303,7 +292,7 @@ static void bg_layer_draw(Layer *layer, GContext *ctx) {
     gpath_draw_outline(ctx, border);
     gpath_destroy(border);
 
-    // M (mañana) / T (tarde) — solo en modo 12h y fuera de countdown
+    // indicador M/T solo en formato 12h
 #ifdef DEBUG_SHOW_EIGHTS
     if (!dieciocho_is_active() && !sonidos_is_scrolling()) {
 #else
@@ -333,7 +322,6 @@ static void bg_layer_draw(Layer *layer, GContext *ctx) {
 #endif
     }
 
-    // HOY label — above the date display
     GFont small_font = fonts_get_system_font(FONT_KEY_GOTHIC_09);
     graphics_context_set_text_color(ctx, GColorBlack);
     if (s_hoy_w > 0 && dieciocho_hoy_visible() && !sonidos_is_scrolling()) {
@@ -343,7 +331,6 @@ static void bg_layer_draw(Layer *layer, GContext *ctx) {
             GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
     }
 
-    // Day names
 #if defined(PBL_PLATFORM_EMERY)
     int day_zone_y = sy(163, h) + 3;
 #else
@@ -367,7 +354,6 @@ static void bg_layer_draw(Layer *layer, GContext *ctx) {
             GTextOverflowModeTrailingEllipsis, GTextAlignmentCenter, NULL);
     }
 }
-
 
 static void update_time(void) {
     time_t temp = time(NULL);
@@ -416,7 +402,6 @@ static void tick_handler(struct tm *tick_time, TimeUnits units_changed) {
     update_time();
 }
 
-
 #if defined(PBL_PLATFORM_EMERY) || defined(PBL_PLATFORM_BASALT) || defined(PBL_PLATFORM_APLITE)
 static void update_cuarzo_cover(void);
 #endif
@@ -435,18 +420,17 @@ static void cuarzo_cover_draw(Layer *layer, GContext *ctx) {
     int h = bounds.size.h;
 
     graphics_context_set_fill_color(ctx, GColorBulgarianRose);
-
     graphics_fill_rect(ctx, GRect(1, 0, bounds.size.w - 1, h), 0, GCornerNone);
 
-    // Separación proporcional a la altura de la imagen
+    // dos píxeles decorativos centrados verticalmente simulan esquinas redondeadas
     int pixel_sep = h - 4;
     int margin    = (h - pixel_sep) / 2;
-    graphics_fill_rect(ctx, GRect(0, margin - 1,          1, 1), 0, GCornerNone);
-    graphics_fill_rect(ctx, GRect(0, margin + pixel_sep,  1, 1), 0, GCornerNone);
+    graphics_fill_rect(ctx, GRect(0, margin - 1,         1, 1), 0, GCornerNone);
+    graphics_fill_rect(ctx, GRect(0, margin + pixel_sep, 1, 1), 0, GCornerNone);
 }
 
 static void update_cuarzo_cover(void) {
-    int pct = battery_perc < 1 ? 1 : (battery_perc > 100 ? 100 : battery_perc);
+    int pct       = battery_perc < 1 ? 1 : (battery_perc > 100 ? 100 : battery_perc);
     int uncovered = 10 + (pct - 1) * (s_cuarzo_w - 10) / 99;
     int cover_w   = s_cuarzo_w - uncovered;
     layer_set_frame(s_cuarzo_cover_layer,
@@ -465,7 +449,6 @@ static void main_window_load(Window *window) {
     layer_set_update_proc(s_bg_layer, bg_layer_draw);
     layer_add_child(window_layer, s_bg_layer);
 
-    // UNO image
     s_uno_bmp = gbitmap_create_with_resource(RESOURCE_ID_IMG_UNO);
 #if defined(PBL_PLATFORM_EMERY)
     s_uno_img_layer = bitmap_layer_create(GRect((w - 44) / 2 - 43, sy(9, h), 44, 35));
@@ -476,7 +459,6 @@ static void main_window_load(Window *window) {
     bitmap_layer_set_compositing_mode(s_uno_img_layer, GCompOpSet);
     layer_add_child(window_layer, bitmap_layer_get_layer(s_uno_img_layer));
 
-    // Eye image
     s_eye_bmp = gbitmap_create_with_resource(RESOURCE_ID_IMG_EYE);
 #if defined(PBL_PLATFORM_EMERY)
     GRect eye_rect = GRect(sx(158, w) - 32, sy(57, h) - 15, 30, 15);
@@ -493,7 +475,7 @@ static void main_window_load(Window *window) {
     s_cuarzo_w = 55; s_cuarzo_h = 18;
     s_cuarzo_x = sx(158, w) - 52;
     s_cuarzo_y = sy(57, h) - 15 - s_cuarzo_h - 8;
-#else  // basalt y aplite comparten dimensiones 40x13
+#else
     s_cuarzo_w = 40; s_cuarzo_h = 13;
     s_cuarzo_x = sx(158, w) - 32 + 5 - 10;
     s_cuarzo_y = sy(57, h) - 15 - s_cuarzo_h - 5;
@@ -511,7 +493,7 @@ static void main_window_load(Window *window) {
     layer_add_child(window_layer, s_cuarzo_cover_layer);
     update_cuarzo_cover();
 #endif
-    // Área táctil: 12px de margen alrededor del ojo
+
     s_eye_touch_rect = GRect(eye_rect.origin.x - 12, eye_rect.origin.y - 12,
                               eye_rect.size.w + 24,  eye_rect.size.h + 24);
 
@@ -592,7 +574,6 @@ static void main_window_load(Window *window) {
     text_layer_set_text_alignment(s_date_layer, GTextAlignmentCenter);
     layer_add_child(window_layer, text_layer_get_layer(s_date_layer));
 
-    // face_interior — on top of everything
 #if defined(PBL_PLATFORM_EMERY) || defined(PBL_PLATFORM_BASALT)
     s_face_bmp = gbitmap_create_with_resource(RESOURCE_ID_IMG_FACE);
 #endif
@@ -682,21 +663,15 @@ static void toggle_sonidos_mode(void) {
 
 static void long_press_callback(void *context) {
     s_touch_timer = NULL;
-    APP_LOG(APP_LOG_LEVEL_DEBUG, "long_press fired, in_eye=%d", (int)s_touch_in_eye);
     if (s_touch_in_eye) toggle_sonidos_mode();
 }
 
 static void touch_handler(const TouchEvent *event, void *context) {
-    APP_LOG(APP_LOG_LEVEL_DEBUG, "touch type=%d x=%d y=%d", (int)event->type, (int)event->x, (int)event->y);
     if (event->type == TouchEvent_Touchdown) {
         s_touch_in_eye = (event->x >= s_eye_touch_rect.origin.x &&
                           event->x <  s_eye_touch_rect.origin.x + s_eye_touch_rect.size.w &&
                           event->y >= s_eye_touch_rect.origin.y &&
                           event->y <  s_eye_touch_rect.origin.y + s_eye_touch_rect.size.h);
-        APP_LOG(APP_LOG_LEVEL_DEBUG, "touchdown in_eye=%d rect=(%d,%d,%d,%d)",
-                (int)s_touch_in_eye,
-                s_eye_touch_rect.origin.x, s_eye_touch_rect.origin.y,
-                s_eye_touch_rect.size.w,   s_eye_touch_rect.size.h);
         if (s_touch_in_eye) {
             s_touch_timer = app_timer_register(600, long_press_callback, NULL);
         }
@@ -709,11 +684,8 @@ static void touch_handler(const TouchEvent *event, void *context) {
 
 static void main_window_appear(Window *window) {
 #if defined(PBL_PLATFORM_EMERY)
-    bool touch_ok = touch_service_is_enabled();
-    APP_LOG(APP_LOG_LEVEL_DEBUG, "touch_service_is_enabled: %d", (int)touch_ok);
-    if (touch_ok) {
+    if (touch_service_is_enabled()) {
         touch_service_subscribe(touch_handler, NULL);
-        APP_LOG(APP_LOG_LEVEL_DEBUG, "touch subscribed");
     }
 #endif
 }
@@ -726,7 +698,6 @@ static void main_window_disappear(Window *window) {
 }
 
 static void init(void) {
-    // Load persisted settings (defaults if first run)
     s_show_welcome = persist_exists(PKEY_SHOW_WELCOME)
         ? persist_read_bool(PKEY_SHOW_WELCOME) : true;
     s_transparent  = persist_exists(PKEY_TRANSPARENT)

@@ -11,10 +11,10 @@ static char      *s_minutes_buf;
 static char      *s_date_buf;
 static void     (*s_update_cb)(void);
 
-static bool      s_active        = false;
+static bool      s_active          = false;
 static AppTimer *s_countdown_timer = NULL;
-static AppTimer *s_blink_timer   = NULL;
-static bool      s_hoy_blink     = false;
+static AppTimer *s_blink_timer     = NULL;
+static bool      s_hoy_blink       = false;
 static int       s_countdown_token = 0;
 
 void dieciocho_init(TextLayer *hours, TextLayer *minutes, TextLayer *date,
