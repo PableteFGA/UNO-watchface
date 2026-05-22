@@ -171,7 +171,7 @@ static void draw_bottom_star(GContext *ctx, GRect bounds) {
 
     GFont small_font = fonts_get_system_font(FONT_KEY_GOTHIC_09);
     graphics_context_set_text_color(ctx, GColorPastelYellow);
-    int text_y = cy + outer_r + 1;
+    int text_y = cy + outer_r - 1;
     int text_w = 40;
     int text_x = cx - text_w / 2;
     graphics_draw_text(ctx, "CHILE", small_font,
@@ -318,13 +318,10 @@ static void bg_layer_draw(Layer *layer, GContext *ctx) {
     }
 
 #if defined(PBL_PLATFORM_APLITE)
-    GPathInfo border_info = {N_BORDER, s_border_pts};
-    GPath *border = gpath_create(&border_info);
-    graphics_context_set_stroke_color(ctx, GColorPastelYellow);
-    graphics_context_set_fill_color(ctx, GColorPastelYellow);
-    graphics_context_set_stroke_width(ctx, 2);
-    gpath_draw_outline(ctx, border);
-    gpath_destroy(border);
+    if (s_bg_bmp && s_transparent) {
+        graphics_context_set_compositing_mode(ctx, GCompOpSet);
+        graphics_draw_bitmap_in_rect(ctx, s_bg_bmp, GRect(0, 0, w, h));
+    }
 #endif
 
     // indicador M/T solo en formato 12h
@@ -621,9 +618,7 @@ static void main_window_load(Window *window) {
     text_layer_set_text_alignment(s_date_layer, GTextAlignmentCenter);
     layer_add_child(window_layer, text_layer_get_layer(s_date_layer));
 
-#if defined(PBL_PLATFORM_EMERY) || defined(PBL_PLATFORM_BASALT) || defined(PBL_PLATFORM_GABBRO)
     s_bg_bmp = gbitmap_create_with_resource(RESOURCE_ID_IMG_BG);
-#endif
 
     dieciocho_init(s_hours_layer, s_minutes_layer, s_date_layer, s_colon_layer,
                    s_bg_layer, s_hours_buf, s_minutes_buf, s_date_buf, update_time);
@@ -656,9 +651,7 @@ static void main_window_unload(Window *window) {
 #endif
     gbitmap_destroy(s_uno_bmp);
     gbitmap_destroy(s_eye_bmp);
-#if defined(PBL_PLATFORM_EMERY) || defined(PBL_PLATFORM_BASALT) || defined(PBL_PLATFORM_GABBRO)
     gbitmap_destroy(s_bg_bmp);
-#endif
     if (s_uno_logo) {
         gdraw_command_image_destroy(s_uno_logo);
         s_uno_logo = NULL;

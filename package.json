@@ -66,6 +66,12 @@
         },
         {
           "type": "png",
+          "name": "IMG_BG",
+          "file": "images/bg/bg_aplite.png",
+          "targetPlatforms": ["aplite"]
+        },
+        {
+          "type": "png",
           "name": "IMG_UNO",
           "file": "images/watch/uno.png",
           "targetPlatforms": ["emery", "gabbro"]
