@@ -2,7 +2,7 @@
 
 # El número UNO — Watchface para Pebble
 
-Réplica digital del reloj UNO, el primer reloj digital fabricado en Chile. Disponible para Pebble Time 2 (emery), Pebble Time (basalt) y Pebble Classic (aplite).
+Réplica digital del reloj UNO, el primer reloj digital fabricado en Chile. Disponible para Pebble Time 2 (emery), Pebble Round 2 (gabbro), Pebble Time (basalt) y Pebble Classic (aplite).
 
 ---
 
@@ -11,6 +11,7 @@ Réplica digital del reloj UNO, el primer reloj digital fabricado en Chile. Disp
 | Plataforma | Modelo | Pantalla | Color |
 |---|---|---|---|
 | **emery** | Pebble Time 2 | 200×228 | 64 colores |
+| **gabbro** | Pebble Round 2 | 260×260 (redonda) | 64 colores |
 | **basalt** | Pebble Time | 144×168 | 64 colores |
 | **aplite** | Pebble Classic | 144×168 | Blanco y negro |
 
@@ -21,7 +22,7 @@ Réplica digital del reloj UNO, el primer reloj digital fabricado en Chile. Disp
 ### Esfera
 - Diseño fiel al reloj UNO original: cuerpo octogonal dorado, dial hexagonal blanco
 - Logo UNO y ojo de cristal renderizados como imagen PNG con canal alfa
-- Borde amarillo octogonal
+- Fondo completo por plataforma como imagen PNG (incluye borde y forma del reloj)
 - Estrella chilena con texto "CHILE / DLH" en la parte inferior
 
 ### Hora y fecha
@@ -83,7 +84,9 @@ src/c/
 
 resources/
 ├── fonts/        — digits.ttf (fuente personalizada)
-├── images/       — PNG del reloj (ojo, cuarzo, cara interior, logo UNO)
+├── images/
+│   ├── bg/       — Fondos completos por plataforma (bg_emery, bg_basalt, bg_aplite, bg_gabbro)
+│   └── watch/    — Elementos del reloj: ojo, cuarzo, logo UNO (variantes por plataforma)
 └── songs/        — Canciones en texto plano (nota midi, duración, velocidad)
 
 scripts/
@@ -98,6 +101,7 @@ scripts/
 ### Emulador
 ```bash
 ./scripts/emu.sh install emery     # Pebble Time 2
+./scripts/emu.sh install gabbro    # Pebble Round 2
 ./scripts/emu.sh install basalt    # Pebble Time
 ./scripts/emu.sh install aplite    # Pebble Classic
 ```
