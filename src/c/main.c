@@ -55,10 +55,10 @@ static Layer       *s_cuarzo_cover_layer;
 static int          s_cuarzo_x, s_cuarzo_y, s_cuarzo_w, s_cuarzo_h;
 static GBitmap *s_uno_bmp;
 static GBitmap *s_eye_bmp;
-static GBitmap *s_face_bmp;
+static GBitmap *s_bg_bmp;
 static GBitmap *s_cuarzo_bmp;
 
-#if defined(PBL_PLATFORM_EMERY)
+#if defined(PBL_PLATFORM_EMERY) || defined(PBL_PLATFORM_GABBRO)
 static const char *DAY_NAMES[] = {"LU","MA","MI","JU","VI","SA","DO"};
 #else
 static const char *DAY_NAMES[] = {"L","M","X","J","V","S","D"};
@@ -85,6 +85,7 @@ static const GPoint HEX_BORDER_RAW[] = {
 #define N_WHITE   6
 #define N_RECT    4
 #define N_BORDER  8
+#define N_HEX     6
 #define STAR_POINTS 10
 
 static GPoint s_gold_pts[N_GOLD];
@@ -92,11 +93,18 @@ static GPoint s_white_pts[N_WHITE];
 static GPoint s_rect_pts[N_RECT];
 static GPoint s_border_pts[N_BORDER];
 static GPoint s_star_pts[STAR_POINTS];
+#if defined(PBL_PLATFORM_GABBRO)
+static GPoint s_hex_pts[N_HEX];
+#endif
 
 static void scale_pts(GPoint *dst, const GPoint *src, int n, int w, int h) {
     for (int i = 0; i < n; i++) {
         dst[i] = GPoint(src[i].x * w / 200, src[i].y * h / 228);
     }
+}
+
+static void shift_pts(GPoint *pts, int n, int dx, int dy) {
+    for (int i = 0; i < n; i++) { pts[i].x += dx; pts[i].y += dy; }
 }
 
 static int sx(int x, int w) { return x * w / 200; }
@@ -109,6 +117,16 @@ static int prv_div_round(int32_t value, int32_t divisor) {
         return (int)((value - divisor / 2) / divisor);
     }
 }
+
+#if defined(PBL_PLATFORM_GABBRO)
+static void build_regular_hexagon(GPoint *pts, int cx, int cy, int r) {
+    for (int k = 0; k < N_HEX; k++) {
+        int32_t angle = TRIG_MAX_ANGLE / 12 + k * (TRIG_MAX_ANGLE / 6);
+        pts[k].x = cx + prv_div_round(sin_lookup(angle) * r, TRIG_MAX_RATIO);
+        pts[k].y = cy - prv_div_round(cos_lookup(angle) * r, TRIG_MAX_RATIO);
+    }
+}
+#endif
 
 static void build_star_points(GPoint *pts, int cx, int cy, int outer_r, int inner_r) {
     // ángulo 0° apunta arriba: x = cx + sin*r, y = cy - cos*r
@@ -132,7 +150,9 @@ static void draw_bottom_star(GContext *ctx, GRect bounds) {
     int outer_r = MAX(4, w * 3 / 100);
     int inner_r = outer_r * 45 / 100;
     int cx = w / 2;
-#if defined(PBL_PLATFORM_EMERY)
+#if defined(PBL_PLATFORM_GABBRO)
+    int cy = h - outer_r - 43;
+#elif defined(PBL_PLATFORM_EMERY)
     int cy = h - outer_r - 25;
 #else
     int cy = h - outer_r - 22;
@@ -165,15 +185,32 @@ static void draw_bottom_star(GContext *ctx, GRect bounds) {
 static void bg_layer_draw(Layer *layer, GContext *ctx) {
     GRect b = layer_get_bounds(layer);
     int w = b.size.w, h = b.size.h;
+#if defined(PBL_PLATFORM_GABBRO)
+    int lw = 200, lh = 228, lx = (w - 200) / 2, ly = (h - 228) / 2;
+#else
+    int lw = w, lh = h, lx = 0, ly = 0;
+#endif
 
-    scale_pts(s_gold_pts,   GOLD_BODY_RAW,  N_GOLD,   w, h);
-    scale_pts(s_white_pts,  WHITE_HEX_RAW,  N_WHITE,  w, h);
-    scale_pts(s_rect_pts,   WHITE_RECT_RAW, N_RECT,   w, h);
-    scale_pts(s_border_pts, HEX_BORDER_RAW, N_BORDER, w, h);
+    scale_pts(s_gold_pts,   GOLD_BODY_RAW,  N_GOLD,   lw, lh);
+    scale_pts(s_white_pts,  WHITE_HEX_RAW,  N_WHITE,  lw, lh);
+    scale_pts(s_rect_pts,   WHITE_RECT_RAW, N_RECT,   lw, lh);
+    scale_pts(s_border_pts, HEX_BORDER_RAW, N_BORDER, lw, lh);
+    if (lx || ly) {
+        shift_pts(s_gold_pts,   N_GOLD,   lx, ly);
+        shift_pts(s_white_pts,  N_WHITE,  lx, ly);
+        shift_pts(s_rect_pts,   N_RECT,   lx, ly);
+        shift_pts(s_border_pts, N_BORDER, lx, ly);
+    }
 
     graphics_context_set_fill_color(ctx, GColorBlack);
     graphics_fill_rect(ctx, b, 0, GCornerNone);
 
+#if defined(PBL_PLATFORM_GABBRO)
+    if (s_bg_bmp) {
+        graphics_context_set_compositing_mode(ctx, GCompOpSet);
+        graphics_draw_bitmap_in_rect(ctx, s_bg_bmp, GRect(0, 0, w, h));
+    }
+#else
     GPathInfo gold_info = {N_GOLD, s_gold_pts};
     GPath *gold = gpath_create(&gold_info);
 #if defined(PBL_PLATFORM_EMERY)
@@ -191,9 +228,6 @@ static void bg_layer_draw(Layer *layer, GContext *ctx) {
     graphics_context_set_stroke_color(ctx, GColorBlack);
     graphics_context_set_stroke_width(ctx, 2);
     bool use_rect = (s_dial_shape == DIAL_SHAPE_RECT);
-#if defined(PBL_PLATFORM_EMERY)
-    if (s_transparent) use_rect = false;
-#endif
     if (use_rect) {
         GPathInfo rect_info = {N_RECT, s_rect_pts};
         GPath *rect_path = gpath_create(&rect_info);
@@ -207,18 +241,17 @@ static void bg_layer_draw(Layer *layer, GContext *ctx) {
         gpath_draw_outline(ctx, white_hex);
         gpath_destroy(white_hex);
     }
+#endif
 
 #if defined(PBL_PLATFORM_EMERY)
-    if (s_face_bmp && s_transparent) {
+    if (s_bg_bmp && s_transparent) {
         graphics_context_set_compositing_mode(ctx, GCompOpSet);
-        graphics_draw_bitmap_in_rect(ctx, s_face_bmp,
-            GRect((w - 196) / 2 - 2, sy(49, h) - 7, 196, 144));
+        graphics_draw_bitmap_in_rect(ctx, s_bg_bmp, GRect(0, 0, w, h));
     }
 #elif defined(PBL_PLATFORM_BASALT)
-    if (s_face_bmp && s_transparent) {
+    if (s_bg_bmp && s_transparent) {
         graphics_context_set_compositing_mode(ctx, GCompOpSet);
-        graphics_draw_bitmap_in_rect(ctx, s_face_bmp,
-            GRect((w - 141) / 2, sy(49, h) - 4, 141, 104));
+        graphics_draw_bitmap_in_rect(ctx, s_bg_bmp, GRect(0, 0, w, h));
     }
 #endif
 
@@ -228,14 +261,14 @@ static void bg_layer_draw(Layer *layer, GContext *ctx) {
 #else
     if (s_bt_connected && !dieciocho_is_active() && !sonidos_is_scrolling()) {
 #endif
-        int hex_y0_tri = sy(74, h);
-        int dz_w       = sx(126, w);
-        int dz_x       = (w - dz_w) / 2 - 2;
+        int hex_y0_tri = ly + sy(74, lh);
+        int dz_w       = sx(126, lw);
+        int dz_x       = lx + (lw - dz_w) / 2 - 2;
         int cell_w_t   = dz_w / 7;
         int tri_w      = MAX(4, cell_w_t * 9 / 20);
         int tri_h      = MAX(5, tri_w * 26 / 17);
         int top        = hex_y0_tri + 3;
-        int cx         = w / 2 - tri_w / 2 + 20;
+        int cx         = lx + lw / 2 - tri_w / 2 + 20;
         GPoint alarm_tri[3] = {
             GPoint(cx + tri_w,                       top),
             GPoint(cx,                               top + tri_h * 741 / 1000),
@@ -252,16 +285,16 @@ static void bg_layer_draw(Layer *layer, GContext *ctx) {
 
     if (s_uno_logo) {
         GSize logo_sz = gdraw_command_image_get_bounds_size(s_uno_logo);
-        int logo_x = (w - logo_sz.w) / 2;
-        int logo_y = sy(5, h);
+        int logo_x = lx + (lw - logo_sz.w) / 2;
+        int logo_y = ly + sy(5, lh);
         gdraw_command_image_draw(ctx, s_uno_logo, GPoint(logo_x, logo_y));
     }
 
     // triángulo indicador del día actual
     if (!dieciocho_is_active() && !sonidos_is_scrolling()) {
-        int hex_y1   = sy(151, h);
-        int dz_w     = sx(126, w);
-        int dz_x     = (w - dz_w) / 2 - 2;
+        int hex_y1   = ly + sy(151, lh);
+        int dz_w     = sx(126, lw);
+        int dz_x     = lx + (lw - dz_w) / 2 - 2;
         int cell_w_t = dz_w / 7;
         int tri_w    = MAX(4, cell_w_t * 9 / 20);
         int tri_h    = MAX(5, tri_w * 26 / 17);
@@ -284,6 +317,7 @@ static void bg_layer_draw(Layer *layer, GContext *ctx) {
         }
     }
 
+#if defined(PBL_PLATFORM_APLITE)
     GPathInfo border_info = {N_BORDER, s_border_pts};
     GPath *border = gpath_create(&border_info);
     graphics_context_set_stroke_color(ctx, GColorPastelYellow);
@@ -291,6 +325,7 @@ static void bg_layer_draw(Layer *layer, GContext *ctx) {
     graphics_context_set_stroke_width(ctx, 2);
     gpath_draw_outline(ctx, border);
     gpath_destroy(border);
+#endif
 
     // indicador M/T solo en formato 12h
 #ifdef DEBUG_SHOW_EIGHTS
@@ -299,8 +334,8 @@ static void bg_layer_draw(Layer *layer, GContext *ctx) {
     if (!clock_is_24h_style() && !dieciocho_is_active() && !sonidos_is_scrolling()) {
 #endif
         GFont small_font2 = fonts_get_system_font(FONT_KEY_GOTHIC_09);
-        int hx = sx(35, w) + 2;
-        int hy = sy(76, h) + 4;
+        int hx = lx + sx(35, lw) + 2;
+        int hy = ly + sy(76, lh) + 4;
         graphics_context_set_text_color(ctx, GColorBlack);
 #ifdef DEBUG_SHOW_EIGHTS
         graphics_draw_text(ctx, "M", small_font2,
@@ -331,26 +366,26 @@ static void bg_layer_draw(Layer *layer, GContext *ctx) {
             GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
     }
 
-#if defined(PBL_PLATFORM_EMERY)
-    int day_zone_y = sy(163, h) + 3;
+#if defined(PBL_PLATFORM_EMERY) || defined(PBL_PLATFORM_GABBRO)
+    int day_zone_y = ly + sy(163, lh) + 3;
 #else
-    int day_zone_y = sy(163, h) + 2;
+    int day_zone_y = ly + sy(163, lh) + 2;
 #endif
-    int day_zone_w = sx(126, w);
-    int day_zone_x = (w - day_zone_w) / 2 - 3;
+    int day_zone_w = sx(126, lw);
+    int day_zone_x = lx + (lw - day_zone_w) / 2 - 3;
     int cell_w = day_zone_w / 7;
-    int label_h = sy(14, h);
+    int label_h = sy(14, lh);
 
     for (int i = 0; i < 7; i++) {
-        int lx = day_zone_x + i * cell_w;
+        int cell_x = day_zone_x + i * cell_w;
         int sq_pad_x = 1;
-        GRect sq = GRect(lx + sq_pad_x, day_zone_y, cell_w - sq_pad_x * 2, label_h);
+        GRect sq = GRect(cell_x + sq_pad_x, day_zone_y, cell_w - sq_pad_x * 2, label_h);
         graphics_context_set_fill_color(ctx, GColorBlack);
         graphics_fill_rect(ctx, sq, 1, GCornersAll);
         graphics_context_set_text_color(ctx, GColorPastelYellow);
         graphics_draw_text(ctx, DAY_NAMES[i],
             small_font,
-            GRect(lx, day_zone_y, cell_w, label_h),
+            GRect(cell_x, day_zone_y, cell_w, label_h),
             GTextOverflowModeTrailingEllipsis, GTextAlignmentCenter, NULL);
     }
 }
@@ -402,18 +437,18 @@ static void tick_handler(struct tm *tick_time, TimeUnits units_changed) {
     update_time();
 }
 
-#if defined(PBL_PLATFORM_EMERY) || defined(PBL_PLATFORM_BASALT) || defined(PBL_PLATFORM_APLITE)
+#if defined(PBL_PLATFORM_EMERY) || defined(PBL_PLATFORM_BASALT) || defined(PBL_PLATFORM_APLITE) || defined(PBL_PLATFORM_GABBRO)
 static void update_cuarzo_cover(void);
 #endif
 
 static void battery_handler(BatteryChargeState state) {
     battery_perc = state.charge_percent;
-#if defined(PBL_PLATFORM_EMERY) || defined(PBL_PLATFORM_BASALT) || defined(PBL_PLATFORM_APLITE)
+#if defined(PBL_PLATFORM_EMERY) || defined(PBL_PLATFORM_BASALT) || defined(PBL_PLATFORM_APLITE) || defined(PBL_PLATFORM_GABBRO)
     if (s_cuarzo_cover_layer) update_cuarzo_cover();
 #endif
 }
 
-#if defined(PBL_PLATFORM_EMERY) || defined(PBL_PLATFORM_BASALT) || defined(PBL_PLATFORM_APLITE)
+#if defined(PBL_PLATFORM_EMERY) || defined(PBL_PLATFORM_BASALT) || defined(PBL_PLATFORM_APLITE) || defined(PBL_PLATFORM_GABBRO)
 static void cuarzo_cover_draw(Layer *layer, GContext *ctx) {
     GRect bounds = layer_get_bounds(layer);
     if (bounds.size.w <= 1) return;
@@ -442,6 +477,11 @@ static void main_window_load(Window *window) {
     Layer *window_layer = window_get_root_layer(window);
     GRect bounds = layer_get_bounds(window_layer);
     int w = bounds.size.w, h = bounds.size.h;
+#if defined(PBL_PLATFORM_GABBRO)
+    int lw = 200, lh = 228, lx = (w - 200) / 2, ly = (h - 228) / 2;
+#else
+    int lw = w, lh = h, lx = 0, ly = 0;
+#endif
 
     s_uno_logo = gdraw_command_image_create_with_resource(RESOURCE_ID_UNO_LOGO);
 
@@ -450,8 +490,8 @@ static void main_window_load(Window *window) {
     layer_add_child(window_layer, s_bg_layer);
 
     s_uno_bmp = gbitmap_create_with_resource(RESOURCE_ID_IMG_UNO);
-#if defined(PBL_PLATFORM_EMERY)
-    s_uno_img_layer = bitmap_layer_create(GRect((w - 44) / 2 - 43, sy(9, h), 44, 35));
+#if defined(PBL_PLATFORM_EMERY) || defined(PBL_PLATFORM_GABBRO)
+    s_uno_img_layer = bitmap_layer_create(GRect(lx + (lw - 44) / 2 - 43 + 5, ly + sy(9, lh), 44, 35));
 #else
     s_uno_img_layer = bitmap_layer_create(GRect((w - 44) / 2 - 43 + 15, sy(9, h) - 4, 44, 35));
 #endif
@@ -460,8 +500,8 @@ static void main_window_load(Window *window) {
     layer_add_child(window_layer, bitmap_layer_get_layer(s_uno_img_layer));
 
     s_eye_bmp = gbitmap_create_with_resource(RESOURCE_ID_IMG_EYE);
-#if defined(PBL_PLATFORM_EMERY)
-    GRect eye_rect = GRect(sx(158, w) - 32, sy(57, h) - 15, 30, 15);
+#if defined(PBL_PLATFORM_EMERY) || defined(PBL_PLATFORM_GABBRO)
+    GRect eye_rect = GRect(lx + sx(158, lw) - 32, ly + sy(57, lh) - 15, 30, 15);
 #else
     GRect eye_rect = GRect(sx(158, w) - 32 + 5, sy(57, h) - 15 + 3, 30, 15);
 #endif
@@ -470,11 +510,11 @@ static void main_window_load(Window *window) {
     bitmap_layer_set_compositing_mode(s_eye_layer, GCompOpSet);
     layer_add_child(window_layer, bitmap_layer_get_layer(s_eye_layer));
 
-#if defined(PBL_PLATFORM_EMERY) || defined(PBL_PLATFORM_BASALT) || defined(PBL_PLATFORM_APLITE)
-#if defined(PBL_PLATFORM_EMERY)
+#if defined(PBL_PLATFORM_EMERY) || defined(PBL_PLATFORM_BASALT) || defined(PBL_PLATFORM_APLITE) || defined(PBL_PLATFORM_GABBRO)
+#if defined(PBL_PLATFORM_EMERY) || defined(PBL_PLATFORM_GABBRO)
     s_cuarzo_w = 55; s_cuarzo_h = 18;
-    s_cuarzo_x = sx(158, w) - 52;
-    s_cuarzo_y = sy(57, h) - 15 - s_cuarzo_h - 8;
+    s_cuarzo_x = lx + sx(158, lw) - 52;
+    s_cuarzo_y = ly + sy(57, lh) - 15 - s_cuarzo_h - 8;
 #else
     s_cuarzo_w = 40; s_cuarzo_h = 13;
     s_cuarzo_x = sx(158, w) - 32 + 5 - 10;
@@ -497,7 +537,7 @@ static void main_window_load(Window *window) {
     s_eye_touch_rect = GRect(eye_rect.origin.x - 12, eye_rect.origin.y - 12,
                               eye_rect.size.w + 24,  eye_rect.size.h + 24);
 
-#if defined(PBL_PLATFORM_EMERY)
+#if defined(PBL_PLATFORM_EMERY) || defined(PBL_PLATFORM_GABBRO)
     s_digits_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_DIGITS_50));
     s_hours_font  = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_DIGITS_51));
     s_date_font   = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_DIGITS_24));
@@ -507,14 +547,14 @@ static void main_window_load(Window *window) {
     s_date_font   = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_DIGITS_18));
 #endif
 
-    int hex_x0 = sx(6,   w);
-    int hex_x1 = sx(194, w);
-    int hex_y0 = sy(70,  h);
-    int hex_y1 = sy(151, h);
+    int hex_x0 = lx + sx(6,   lw);
+    int hex_x1 = lx + sx(194, lw);
+    int hex_y0 = ly + sy(70,  lh);
+    int hex_y1 = ly + sy(151, lh);
     int hex_w  = hex_x1 - hex_x0;
     int hex_h  = hex_y1 - hex_y0;
 
-#if defined(PBL_PLATFORM_EMERY)
+#if defined(PBL_PLATFORM_EMERY) || defined(PBL_PLATFORM_GABBRO)
     int font_h = 51;
     int date_font_h = 24;
     int colon_gap = 12;
@@ -532,7 +572,7 @@ static void main_window_load(Window *window) {
     int date_w    = hex_w * 28 / 100;
     int time_w    = hex_w - date_w - 4;
     int group_w   = (time_w - colon_gap) / 2;
-#if defined(PBL_PLATFORM_EMERY)
+#if defined(PBL_PLATFORM_EMERY) || defined(PBL_PLATFORM_GABBRO)
     int time_offset = -3;
     int date_offset =  4;
 #else
@@ -581,8 +621,8 @@ static void main_window_load(Window *window) {
     text_layer_set_text_alignment(s_date_layer, GTextAlignmentCenter);
     layer_add_child(window_layer, text_layer_get_layer(s_date_layer));
 
-#if defined(PBL_PLATFORM_EMERY) || defined(PBL_PLATFORM_BASALT)
-    s_face_bmp = gbitmap_create_with_resource(RESOURCE_ID_IMG_FACE);
+#if defined(PBL_PLATFORM_EMERY) || defined(PBL_PLATFORM_BASALT) || defined(PBL_PLATFORM_GABBRO)
+    s_bg_bmp = gbitmap_create_with_resource(RESOURCE_ID_IMG_BG);
 #endif
 
     dieciocho_init(s_hours_layer, s_minutes_layer, s_date_layer, s_colon_layer,
@@ -609,15 +649,15 @@ static void main_window_unload(Window *window) {
     layer_destroy(s_bg_layer);
     bitmap_layer_destroy(s_uno_img_layer);
     bitmap_layer_destroy(s_eye_layer);
-#if defined(PBL_PLATFORM_EMERY) || defined(PBL_PLATFORM_BASALT) || defined(PBL_PLATFORM_APLITE)
+#if defined(PBL_PLATFORM_EMERY) || defined(PBL_PLATFORM_BASALT) || defined(PBL_PLATFORM_APLITE) || defined(PBL_PLATFORM_GABBRO)
     layer_destroy(s_cuarzo_cover_layer);
     bitmap_layer_destroy(s_cuarzo_layer);
     gbitmap_destroy(s_cuarzo_bmp);
 #endif
     gbitmap_destroy(s_uno_bmp);
     gbitmap_destroy(s_eye_bmp);
-#if defined(PBL_PLATFORM_EMERY) || defined(PBL_PLATFORM_BASALT)
-    gbitmap_destroy(s_face_bmp);
+#if defined(PBL_PLATFORM_EMERY) || defined(PBL_PLATFORM_BASALT) || defined(PBL_PLATFORM_GABBRO)
+    gbitmap_destroy(s_bg_bmp);
 #endif
     if (s_uno_logo) {
         gdraw_command_image_destroy(s_uno_logo);
@@ -656,7 +696,7 @@ static void inbox_received_cb(DictionaryIterator *iter, void *ctx) {
     if (needs_redraw) layer_mark_dirty(s_bg_layer);
 }
 
-#if defined(PBL_PLATFORM_EMERY)
+#if defined(PBL_PLATFORM_EMERY) || defined(PBL_PLATFORM_GABBRO)
 static void toggle_sonidos_mode(void) {
     vibes_long_pulse();
     if (sonidos_is_scrolling()) {
@@ -690,7 +730,7 @@ static void touch_handler(const TouchEvent *event, void *context) {
 #endif
 
 static void main_window_appear(Window *window) {
-#if defined(PBL_PLATFORM_EMERY)
+#if defined(PBL_PLATFORM_EMERY) || defined(PBL_PLATFORM_GABBRO)
     if (touch_service_is_enabled()) {
         touch_service_subscribe(touch_handler, NULL);
     }
@@ -699,7 +739,7 @@ static void main_window_appear(Window *window) {
 
 static void main_window_disappear(Window *window) {
     if (sonidos_is_scrolling()) scroll_stop();
-#if defined(PBL_PLATFORM_EMERY)
+#if defined(PBL_PLATFORM_EMERY) || defined(PBL_PLATFORM_GABBRO)
     touch_service_unsubscribe();
 #endif
 }
