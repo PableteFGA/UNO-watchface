@@ -23,6 +23,7 @@
 static int    battery_perc   = 100;
 static bool   s_show_welcome = true;
 static bool   s_transparent  = true;
+static bool   s_outline      = false;
 static GColor s_bg_color;
 static int    s_dial_shape   = DIAL_SHAPE_HEX;
 
@@ -57,11 +58,14 @@ static GBitmap *s_uno_bmp;
 static GBitmap *s_eye_bmp;
 static GBitmap *s_bg_bmp;
 static GBitmap *s_cuarzo_bmp;
+#if defined(PBL_PLATFORM_BASALT)
+static GBitmap *s_outline_bmp;
+#endif
 
-#if defined(PBL_PLATFORM_EMERY) || defined(PBL_PLATFORM_GABBRO)
-static const char *DAY_NAMES[] = {"LU","MA","MI","JU","VI","SA","DO"};
-#else
+#if defined(PBL_PLATFORM_APLITE)
 static const char *DAY_NAMES[] = {"L","M","X","J","V","S","D"};
+#else
+static const char *DAY_NAMES[] = {"LU","MA","MI","JU","VI","SA","DO"};
 #endif
 
 static int wday_to_idx(int wday) {
@@ -154,6 +158,8 @@ static void draw_bottom_star(GContext *ctx, GRect bounds) {
     int cy = h - outer_r - 43;
 #elif defined(PBL_PLATFORM_EMERY)
     int cy = h - outer_r - 25;
+#elif defined(PBL_PLATFORM_BASALT)
+    int cy = h - outer_r - 14;
 #else
     int cy = h - outer_r - 22;
 #endif
@@ -171,7 +177,11 @@ static void draw_bottom_star(GContext *ctx, GRect bounds) {
 
     GFont small_font = fonts_get_system_font(FONT_KEY_GOTHIC_09);
     graphics_context_set_text_color(ctx, GColorPastelYellow);
+#if defined(PBL_PLATFORM_BASALT)
+    int text_y = cy + outer_r - 2;
+#else
     int text_y = cy + outer_r - 1;
+#endif
     int text_w = 40;
     int text_x = cx - text_w / 2;
     graphics_draw_text(ctx, "CHILE", small_font,
@@ -189,6 +199,11 @@ static void bg_layer_draw(Layer *layer, GContext *ctx) {
     int lw = 200, lh = 228, lx = (w - 200) / 2, ly = (h - 228) / 2;
 #else
     int lw = w, lh = h, lx = 0, ly = 0;
+#endif
+#if defined(PBL_PLATFORM_BASALT)
+    int by_off = 4;
+#else
+    int by_off = 0;
 #endif
 
     scale_pts(s_gold_pts,   GOLD_BODY_RAW,  N_GOLD,   lw, lh);
@@ -251,7 +266,7 @@ static void bg_layer_draw(Layer *layer, GContext *ctx) {
 #elif defined(PBL_PLATFORM_BASALT)
     if (s_bg_bmp && s_transparent) {
         graphics_context_set_compositing_mode(ctx, GCompOpSet);
-        graphics_draw_bitmap_in_rect(ctx, s_bg_bmp, GRect(0, 0, w, h));
+        graphics_draw_bitmap_in_rect(ctx, s_bg_bmp, GRect(0, by_off, w, h));
     }
 #endif
 
@@ -261,14 +276,24 @@ static void bg_layer_draw(Layer *layer, GContext *ctx) {
 #else
     if (s_bt_connected && !dieciocho_is_active() && !sonidos_is_scrolling()) {
 #endif
-        int hex_y0_tri = ly + sy(74, lh);
+        int hex_y0_tri = ly + sy(74, lh) + by_off;
+#if defined(PBL_PLATFORM_BASALT)
+        int tri_w      = 8;
+        int tri_h      = 12;
+#else
         int dz_w       = sx(126, lw);
         int dz_x       = lx + (lw - dz_w) / 2 - 2;
         int cell_w_t   = dz_w / 7;
         int tri_w      = MAX(4, cell_w_t * 9 / 20);
         int tri_h      = MAX(5, tri_w * 26 / 17);
+#endif
+#if defined(PBL_PLATFORM_BASALT)
+        int top        = hex_y0_tri + 3 - 3;
+        int cx         = lx + lw / 2 - tri_w / 2 + 20 - 4;
+#else
         int top        = hex_y0_tri + 3;
         int cx         = lx + lw / 2 - tri_w / 2 + 20;
+#endif
         GPoint alarm_tri[3] = {
             GPoint(cx + tri_w,                       top),
             GPoint(cx,                               top + tri_h * 741 / 1000),
@@ -292,10 +317,15 @@ static void bg_layer_draw(Layer *layer, GContext *ctx) {
 
     // triángulo indicador del día actual
     if (!dieciocho_is_active() && !sonidos_is_scrolling()) {
-        int hex_y1   = ly + sy(151, lh);
+        int hex_y1   = ly + sy(151, lh) + by_off;
+#if defined(PBL_PLATFORM_BASALT)
+        int cell_w_t = 18;
+        int dz_x     = 7;
+#else
         int dz_w     = sx(126, lw);
         int dz_x     = lx + (lw - dz_w) / 2 - 2;
         int cell_w_t = dz_w / 7;
+#endif
         int tri_w    = MAX(4, cell_w_t * 9 / 20);
         int tri_h    = MAX(5, tri_w * 26 / 17);
         int bot      = hex_y1  + 6;
@@ -330,25 +360,34 @@ static void bg_layer_draw(Layer *layer, GContext *ctx) {
 #else
     if (!clock_is_24h_style() && !dieciocho_is_active() && !sonidos_is_scrolling()) {
 #endif
+#if defined(PBL_PLATFORM_BASALT)
+        GFont small_font2 = fonts_get_system_font(FONT_KEY_GOTHIC_14);
+        int hx = lx + sx(35, lw) + 2 - 13;
+#else
         GFont small_font2 = fonts_get_system_font(FONT_KEY_GOTHIC_09);
         int hx = lx + sx(35, lw) + 2;
-        int hy = ly + sy(76, lh) + 4;
+#endif
+#if defined(PBL_PLATFORM_BASALT)
+        int hy = ly + sy(76, lh) + 4 + by_off - 8;
+#else
+        int hy = ly + sy(76, lh) + 4 + by_off;
+#endif
         graphics_context_set_text_color(ctx, GColorBlack);
 #ifdef DEBUG_SHOW_EIGHTS
         graphics_draw_text(ctx, "M", small_font2,
-            GRect(hx, hy, 10, 12),
+            GRect(hx, hy, 12, 16),
             GTextOverflowModeTrailingEllipsis, GTextAlignmentLeft, NULL);
         graphics_draw_text(ctx, "T", small_font2,
-            GRect(hx + 8, hy, 10, 12),
+            GRect(hx + 10, hy, 12, 16),
             GTextOverflowModeTrailingEllipsis, GTextAlignmentLeft, NULL);
 #else
         if (s_current_hour >= 0 && s_current_hour < 12) {
             graphics_draw_text(ctx, "M", small_font2,
-                GRect(hx, hy, 10, 12),
+                GRect(hx, hy, 12, 16),
                 GTextOverflowModeTrailingEllipsis, GTextAlignmentLeft, NULL);
         } else {
             graphics_draw_text(ctx, "T", small_font2,
-                GRect(hx + 8, hy, 10, 12),
+                GRect(hx + 10, hy, 12, 16),
                 GTextOverflowModeTrailingEllipsis, GTextAlignmentLeft, NULL);
         }
 #endif
@@ -363,15 +402,19 @@ static void bg_layer_draw(Layer *layer, GContext *ctx) {
             GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
     }
 
-#if defined(PBL_PLATFORM_EMERY) || defined(PBL_PLATFORM_GABBRO)
-    int day_zone_y = ly + sy(163, lh) + 3;
+#if defined(PBL_PLATFORM_BASALT)
+    int day_zone_y = sy(163, h) + 9;
+    int day_zone_w = 126;
+    int day_zone_x = (w - day_zone_w) / 2 - 3;
+    int cell_w     = day_zone_w / 7;
+    int label_h    = 14;
 #else
-    int day_zone_y = ly + sy(163, lh) + 2;
-#endif
+    int day_zone_y = ly + sy(163, lh) + 3;
     int day_zone_w = sx(126, lw);
     int day_zone_x = lx + (lw - day_zone_w) / 2 - 3;
     int cell_w = day_zone_w / 7;
     int label_h = sy(14, lh);
+#endif
 
     for (int i = 0; i < 7; i++) {
         int cell_x = day_zone_x + i * cell_w;
@@ -385,6 +428,13 @@ static void bg_layer_draw(Layer *layer, GContext *ctx) {
             GRect(cell_x, day_zone_y, cell_w, label_h),
             GTextOverflowModeTrailingEllipsis, GTextAlignmentCenter, NULL);
     }
+
+#if defined(PBL_PLATFORM_BASALT)
+    if (s_outline && s_outline_bmp) {
+        graphics_context_set_compositing_mode(ctx, GCompOpSet);
+        graphics_draw_bitmap_in_rect(ctx, s_outline_bmp, GRect(0, 0, w, h));
+    }
+#endif
 }
 
 static void update_time(void) {
@@ -479,6 +529,11 @@ static void main_window_load(Window *window) {
 #else
     int lw = w, lh = h, lx = 0, ly = 0;
 #endif
+#if defined(PBL_PLATFORM_BASALT)
+    int by_off = 4;
+#else
+    int by_off = 0;
+#endif
 
     s_uno_logo = gdraw_command_image_create_with_resource(RESOURCE_ID_UNO_LOGO);
 
@@ -489,6 +544,8 @@ static void main_window_load(Window *window) {
     s_uno_bmp = gbitmap_create_with_resource(RESOURCE_ID_IMG_UNO);
 #if defined(PBL_PLATFORM_EMERY) || defined(PBL_PLATFORM_GABBRO)
     s_uno_img_layer = bitmap_layer_create(GRect(lx + (lw - 44) / 2 - 43 + 5, ly + sy(9, lh), 44, 35));
+#elif defined(PBL_PLATFORM_BASALT)
+    s_uno_img_layer = bitmap_layer_create(GRect(6, -3, 44, 35));
 #else
     s_uno_img_layer = bitmap_layer_create(GRect((w - 44) / 2 - 43 + 15, sy(9, h) - 4, 44, 35));
 #endif
@@ -499,6 +556,8 @@ static void main_window_load(Window *window) {
     s_eye_bmp = gbitmap_create_with_resource(RESOURCE_ID_IMG_EYE);
 #if defined(PBL_PLATFORM_EMERY) || defined(PBL_PLATFORM_GABBRO)
     GRect eye_rect = GRect(lx + sx(158, lw) - 32, ly + sy(57, lh) - 15, 30, 15);
+#elif defined(PBL_PLATFORM_BASALT)
+    GRect eye_rect = GRect(sx(158, w) - 32 + 8, sy(57, h) - 15 + by_off, 30, 15);
 #else
     GRect eye_rect = GRect(sx(158, w) - 32 + 5, sy(57, h) - 15 + 3, 30, 15);
 #endif
@@ -512,6 +571,10 @@ static void main_window_load(Window *window) {
     s_cuarzo_w = 55; s_cuarzo_h = 18;
     s_cuarzo_x = lx + sx(158, lw) - 52;
     s_cuarzo_y = ly + sy(57, lh) - 15 - s_cuarzo_h - 8;
+#elif defined(PBL_PLATFORM_BASALT)
+    s_cuarzo_w = 55; s_cuarzo_h = 18;
+    s_cuarzo_x = sx(158, w) - 52 + 16;
+    s_cuarzo_y = sy(57, h) - 15 - s_cuarzo_h - 8 - 1 + by_off;
 #else
     s_cuarzo_w = 40; s_cuarzo_h = 13;
     s_cuarzo_x = sx(158, w) - 32 + 5 - 10;
@@ -538,6 +601,10 @@ static void main_window_load(Window *window) {
     s_digits_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_DIGITS_50));
     s_hours_font  = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_DIGITS_51));
     s_date_font   = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_DIGITS_24));
+#elif defined(PBL_PLATFORM_BASALT)
+    s_digits_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_DIGITS_45));
+    s_hours_font  = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_DIGITS_46));
+    s_date_font   = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_DIGITS_22));
 #else
     s_digits_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_DIGITS_38));
     s_hours_font  = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_DIGITS_39));
@@ -546,8 +613,8 @@ static void main_window_load(Window *window) {
 
     int hex_x0 = lx + sx(6,   lw);
     int hex_x1 = lx + sx(194, lw);
-    int hex_y0 = ly + sy(70,  lh);
-    int hex_y1 = ly + sy(151, lh);
+    int hex_y0 = ly + sy(70,  lh) + by_off;
+    int hex_y1 = ly + sy(151, lh) + by_off;
     int hex_w  = hex_x1 - hex_x0;
     int hex_h  = hex_y1 - hex_y0;
 
@@ -556,6 +623,11 @@ static void main_window_load(Window *window) {
     int date_font_h = 24;
     int colon_gap = 12;
     int colon_w   = 12;
+#elif defined(PBL_PLATFORM_BASALT)
+    int font_h = 45;
+    int date_font_h = 22;
+    int colon_gap = 6;
+    int colon_w   = 13;
 #else
     int font_h = 39;
     int date_font_h = 18;
@@ -566,25 +638,41 @@ static void main_window_load(Window *window) {
     int t_y0 = hex_y0 + (hex_h - font_h) / 2 - hex_h * 10 / 100 + 9;
     int t_h  = font_h + 4;
 
+#if defined(PBL_PLATFORM_BASALT)
+    int group_w   = 55;
+    int date_w    = 28;
+    int time_w    = group_w * 2 + colon_gap;
+#else
     int date_w    = hex_w * 28 / 100;
     int time_w    = hex_w - date_w - 4;
     int group_w   = (time_w - colon_gap) / 2;
+#endif
 #if defined(PBL_PLATFORM_EMERY) || defined(PBL_PLATFORM_GABBRO)
     int time_offset = -3;
     int date_offset =  4;
+    int time_y_off  =  0;
+#elif defined(PBL_PLATFORM_BASALT)
+    int time_offset = -14;
+    int date_offset = -12;
+    int time_y_off  =  -6;
 #else
     int time_offset =  0;
     int date_offset =  0;
+    int time_y_off  =  0;
 #endif
     int x_hours   = hex_x0 + hex_w * 10 / 100 + time_offset;
     int x_colon   = x_hours + group_w;
     int x_minutes = x_colon + colon_gap;
     int x_date    = hex_x0 + time_w - hex_w * 5 / 100 + 9 + date_offset;
 
+#if defined(PBL_PLATFORM_BASALT)
     int date_y0 = hex_y0 + (hex_h - date_font_h) / 2 + 9;
+#else
+    int date_y0 = hex_y0 + (hex_h - date_font_h) / 2 + 9;
+#endif
     int date_h  = date_font_h + 4;
 
-    s_hours_layer = text_layer_create(GRect(x_hours, t_y0, group_w, t_h));
+    s_hours_layer = text_layer_create(GRect(x_hours, t_y0 + time_y_off, group_w, t_h));
     text_layer_set_background_color(s_hours_layer, GColorClear);
     text_layer_set_text_color(s_hours_layer, GColorBlack);
     text_layer_set_font(s_hours_layer, s_hours_font);
@@ -592,7 +680,7 @@ static void main_window_load(Window *window) {
     layer_add_child(window_layer, text_layer_get_layer(s_hours_layer));
 
     int cl_x = x_colon + colon_gap / 2 - colon_w / 2;
-    s_colon_layer = text_layer_create(GRect(cl_x, t_y0, colon_w, t_h));
+    s_colon_layer = text_layer_create(GRect(cl_x, t_y0 + time_y_off, colon_w, t_h));
     text_layer_set_background_color(s_colon_layer, GColorClear);
     text_layer_set_text_color(s_colon_layer, GColorBlack);
     text_layer_set_font(s_colon_layer, s_hours_font);
@@ -600,7 +688,7 @@ static void main_window_load(Window *window) {
     text_layer_set_text(s_colon_layer, ":");
     layer_add_child(window_layer, text_layer_get_layer(s_colon_layer));
 
-    s_minutes_layer = text_layer_create(GRect(x_minutes, t_y0, group_w, t_h));
+    s_minutes_layer = text_layer_create(GRect(x_minutes, t_y0 + time_y_off, group_w, t_h));
     text_layer_set_background_color(s_minutes_layer, GColorClear);
     text_layer_set_text_color(s_minutes_layer, GColorBlack);
     text_layer_set_font(s_minutes_layer, s_digits_font);
@@ -619,6 +707,9 @@ static void main_window_load(Window *window) {
     layer_add_child(window_layer, text_layer_get_layer(s_date_layer));
 
     s_bg_bmp = gbitmap_create_with_resource(RESOURCE_ID_IMG_BG);
+#if defined(PBL_PLATFORM_BASALT)
+    s_outline_bmp = gbitmap_create_with_resource(RESOURCE_ID_IMG_OUTLINE);
+#endif
 
     dieciocho_init(s_hours_layer, s_minutes_layer, s_date_layer, s_colon_layer,
                    s_bg_layer, s_hours_buf, s_minutes_buf, s_date_buf, update_time);
@@ -652,6 +743,9 @@ static void main_window_unload(Window *window) {
     gbitmap_destroy(s_uno_bmp);
     gbitmap_destroy(s_eye_bmp);
     gbitmap_destroy(s_bg_bmp);
+#if defined(PBL_PLATFORM_BASALT)
+    gbitmap_destroy(s_outline_bmp);
+#endif
     if (s_uno_logo) {
         gdraw_command_image_destroy(s_uno_logo);
         s_uno_logo = NULL;

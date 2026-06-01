@@ -55,7 +55,13 @@
         {
           "type": "png",
           "name": "IMG_BG",
-          "file": "images/bg/bg_basalt.png",
+          "file": "images/bg/calibre_basalt.png",
+          "targetPlatforms": ["basalt"]
+        },
+        {
+          "type": "png",
+          "name": "IMG_OUTLINE",
+          "file": "images/bg/outline_basalt.png",
           "targetPlatforms": ["basalt"]
         },
         {
@@ -74,13 +80,13 @@
           "type": "png",
           "name": "IMG_UNO",
           "file": "images/watch/uno.png",
-          "targetPlatforms": ["emery", "gabbro"]
+          "targetPlatforms": ["emery", "gabbro", "basalt"]
         },
         {
           "type": "png",
           "name": "IMG_UNO",
           "file": "images/watch/uno_basalt.png",
-          "targetPlatforms": ["basalt"]
+          "targetPlatforms": []
         },
         {
           "type": "png",
@@ -116,13 +122,13 @@
           "type": "png",
           "name": "IMG_CUARZO",
           "file": "images/watch/cuarzo_emery.png",
-          "targetPlatforms": ["emery", "gabbro"]
+          "targetPlatforms": ["emery", "gabbro", "basalt"]
         },
         {
           "type": "png",
           "name": "IMG_CUARZO",
           "file": "images/watch/cuarzo_basalt.png",
-          "targetPlatforms": ["basalt"]
+          "targetPlatforms": []
         },
         {
           "type": "png",
@@ -192,6 +198,41 @@
           "file": "fonts/digits.ttf",
           "characterRegex": "[0-9:]",
           "targetPlatforms": ["basalt", "aplite"]
+        },
+        {
+          "type": "font",
+          "name": "DIGITS_40",
+          "file": "fonts/digits.ttf",
+          "characterRegex": "[0-9:A-Z -]",
+          "targetPlatforms": ["basalt"]
+        },
+        {
+          "type": "font",
+          "name": "DIGITS_19",
+          "file": "fonts/digits.ttf",
+          "characterRegex": "[0-9:]",
+          "targetPlatforms": ["basalt"]
+        },
+        {
+          "type": "font",
+          "name": "DIGITS_45",
+          "file": "fonts/digits.ttf",
+          "characterRegex": "[0-9:]",
+          "targetPlatforms": ["basalt"]
+        },
+        {
+          "type": "font",
+          "name": "DIGITS_46",
+          "file": "fonts/digits.ttf",
+          "characterRegex": "[0-9:A-Z -]",
+          "targetPlatforms": ["basalt"]
+        },
+        {
+          "type": "font",
+          "name": "DIGITS_22",
+          "file": "fonts/digits.ttf",
+          "characterRegex": "[0-9:]",
+          "targetPlatforms": ["basalt"]
         },
         {
           "type": "font",
