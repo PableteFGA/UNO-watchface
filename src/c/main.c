@@ -433,7 +433,7 @@ static void bg_layer_draw(Layer *layer, GContext *ctx) {
 
     GFont small_font = fonts_get_system_font(FONT_KEY_GOTHIC_09);
     graphics_context_set_text_color(ctx, GColorBlack);
-    if (s_hoy_w > 0 && dieciocho_hoy_visible() && !sonidos_is_scrolling() && !s_show_seconds) {
+    if (s_hoy_w > 0 && dieciocho_hoy_visible() && !sonidos_is_scrolling() && (!s_show_seconds || dieciocho_is_active())) {
         graphics_draw_text(ctx, "HOY",
             small_font,
             GRect(s_hoy_x, s_hoy_y, s_hoy_w, 12),
@@ -528,6 +528,7 @@ static void bt_handler(bool connected) {
 }
 
 static void tick_handler(struct tm *tick_time, TimeUnits units_changed) {
+    if (dieciocho_is_active() || sonidos_is_scrolling()) return;
     update_time();
 }
 
