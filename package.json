@@ -15,7 +15,7 @@
     "sdkVersion": "3",
     "enableMultiJS": true,
     "messageKeys": {
-      "SHOW_WELCOME": 0,
+      "WELCOME_ACTION": 0,
       "TRANSPARENT_PORTION": 1,
       "BG_COLOR": 2,
       "DIAL_SHAPE": 3,
@@ -62,12 +62,6 @@
         },
         {
           "type": "png",
-          "name": "IMG_OUTLINE",
-          "file": "images/bg/outline_basalt.png",
-          "targetPlatforms": ["basalt"]
-        },
-        {
-          "type": "png",
           "name": "IMG_BG",
           "file": "images/bg/bg_gabbro.png",
           "targetPlatforms": ["gabbro"]
@@ -83,12 +77,6 @@
           "name": "IMG_UNO",
           "file": "images/watch/uno.png",
           "targetPlatforms": ["emery", "gabbro", "basalt"]
-        },
-        {
-          "type": "png",
-          "name": "IMG_UNO",
-          "file": "images/watch/uno_basalt.png",
-          "targetPlatforms": []
         },
         {
           "type": "png",
@@ -125,12 +113,6 @@
           "name": "IMG_CUARZO",
           "file": "images/watch/cuarzo_emery.png",
           "targetPlatforms": ["emery", "gabbro", "basalt"]
-        },
-        {
-          "type": "png",
-          "name": "IMG_CUARZO",
-          "file": "images/watch/cuarzo_basalt.png",
-          "targetPlatforms": []
         },
         {
           "type": "png",

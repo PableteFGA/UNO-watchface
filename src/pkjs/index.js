@@ -7,6 +7,17 @@ var config = [
   },
   {
     type: 'select',
+    messageKey: 'WELCOME_ACTION',
+    label: 'Al volver al reloj',
+    defaultValue: '0',
+    options: [
+      { label: 'Nada',    value: '0' },
+      { label: 'Modo 18', value: '1' },
+      { label: 'Sonido',  value: '2' }
+    ]
+  },
+  {
+    type: 'select',
     messageKey: 'SHAKE_ACTION',
     label: 'Al sacudir la muñeca',
     defaultValue: '0',
@@ -49,6 +60,9 @@ Pebble.addEventListener('webviewclosed', function(e) {
   console.log('UNO config raw: ' + JSON.stringify(settings));
 
   var msg = {};
+  if (settings.WELCOME_ACTION !== undefined) {
+    msg[0] = parseInt(settings.WELCOME_ACTION.value, 10) || 0;
+  }
   if (settings.SHAKE_ACTION !== undefined) {
     msg[4] = parseInt(settings.SHAKE_ACTION.value, 10) || 0;
   }

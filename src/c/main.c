@@ -6,8 +6,8 @@
 
 //#define DEBUG_SHOW_EIGHTS
 
-#ifndef MESSAGE_KEY_SHOW_WELCOME
-#define MESSAGE_KEY_SHOW_WELCOME         0
+#ifndef MESSAGE_KEY_WELCOME_ACTION
+#define MESSAGE_KEY_WELCOME_ACTION       0
 #define MESSAGE_KEY_TRANSPARENT_PORTION  1
 #define MESSAGE_KEY_BG_COLOR             2
 #define MESSAGE_KEY_DIAL_SHAPE           3
@@ -15,7 +15,7 @@
 #define MESSAGE_KEY_SHOW_SECONDS         5
 #endif
 
-#define PKEY_SHOW_WELCOME      0
+#define PKEY_WELCOME_ACTION    0
 #define PKEY_TRANSPARENT       1
 #define PKEY_BG_COLOR          2
 #define PKEY_DIAL_SHAPE        3
@@ -30,11 +30,11 @@
 #define SHAKE_SONIDO  2
 
 static int    battery_perc   = 100;
-static bool   s_show_welcome    = true;
+static int    s_welcome_action  = SHAKE_NADA;
 static int    s_shake_action = SHAKE_NADA;
 static bool   s_show_seconds   = false;
 static bool   s_transparent  = true;
-static bool   s_outline      = false;
+
 static GColor s_bg_color;
 static int    s_dial_shape   = DIAL_SHAPE_HEX;
 
@@ -70,7 +70,7 @@ static GBitmap *s_eye_bmp;
 static GBitmap *s_bg_bmp;
 static GBitmap *s_cuarzo_bmp;
 #if defined(PBL_PLATFORM_BASALT)
-static GBitmap *s_outline_bmp;
+
 #endif
 
 typedef struct {
@@ -494,12 +494,6 @@ static void bg_layer_draw(Layer *layer, GContext *ctx) {
             GTextOverflowModeTrailingEllipsis, GTextAlignmentCenter, NULL);
     }
 
-#if defined(PBL_PLATFORM_BASALT)
-    if (s_outline && s_outline_bmp) {
-        graphics_context_set_compositing_mode(ctx, GCompOpSet);
-        graphics_draw_bitmap_in_rect(ctx, s_outline_bmp, GRect(0, 0, w, h));
-    }
-#endif
 }
 
 static void update_time(void) {
@@ -771,10 +765,6 @@ static void main_window_load(Window *window) {
     layer_add_child(window_layer, text_layer_get_layer(s_date_layer));
 
     s_bg_bmp = gbitmap_create_with_resource(RESOURCE_ID_IMG_BG);
-#if defined(PBL_PLATFORM_BASALT)
-    s_outline_bmp = gbitmap_create_with_resource(RESOURCE_ID_IMG_OUTLINE);
-#endif
-
     dieciocho_init(s_hours_layer, s_minutes_layer, s_date_layer, s_colon_layer,
                    s_bg_layer, s_hours_buf, s_minutes_buf, s_date_buf, update_time);
     sonidos_init(s_hours_layer, s_minutes_layer, s_colon_layer, s_date_layer,
@@ -807,9 +797,6 @@ static void main_window_unload(Window *window) {
     gbitmap_destroy(s_uno_bmp);
     gbitmap_destroy(s_eye_bmp);
     gbitmap_destroy(s_bg_bmp);
-#if defined(PBL_PLATFORM_BASALT)
-    gbitmap_destroy(s_outline_bmp);
-#endif
     if (s_uno_logo) {
         gdraw_command_image_destroy(s_uno_logo);
         s_uno_logo = NULL;
@@ -821,10 +808,10 @@ static void inbox_received_cb(DictionaryIterator *iter, void *ctx) {
     Tuple *t;
     bool needs_redraw = false;
 
-    t = dict_find(iter, MESSAGE_KEY_SHOW_WELCOME);
+    t = dict_find(iter, MESSAGE_KEY_WELCOME_ACTION);
     if (t) {
-        s_show_welcome = (bool)t->value->int32;
-        persist_write_bool(PKEY_SHOW_WELCOME, s_show_welcome);
+        s_welcome_action = (int)t->value->int32;
+        persist_write_int(PKEY_WELCOME_ACTION, s_welcome_action);
     }
     t = dict_find(iter, MESSAGE_KEY_TRANSPARENT_PORTION);
     if (t) {
@@ -907,6 +894,12 @@ static void main_window_appear(Window *window) {
         touch_service_subscribe(touch_handler, NULL);
     }
 #endif
+    if (s_welcome_action == SHAKE_DIEC18) {
+        dieciocho_trigger();
+    } else if (s_welcome_action == SHAKE_SONIDO) {
+        scroll_start();
+        sonidos_song_play();
+    }
 }
 
 static void main_window_disappear(Window *window) {
@@ -917,8 +910,8 @@ static void main_window_disappear(Window *window) {
 }
 
 static void init(void) {
-    s_show_welcome = persist_exists(PKEY_SHOW_WELCOME)
-        ? persist_read_bool(PKEY_SHOW_WELCOME) : true;
+    s_welcome_action = persist_exists(PKEY_WELCOME_ACTION)
+        ? persist_read_int(PKEY_WELCOME_ACTION) : SHAKE_NADA;
     s_transparent  = persist_exists(PKEY_TRANSPARENT)
         ? persist_read_bool(PKEY_TRANSPARENT)  : true;
     s_bg_color = persist_exists(PKEY_BG_COLOR)
