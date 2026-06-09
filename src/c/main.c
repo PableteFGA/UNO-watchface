@@ -11,7 +11,7 @@
 #define MESSAGE_KEY_TRANSPARENT_PORTION  1
 #define MESSAGE_KEY_BG_COLOR             2
 #define MESSAGE_KEY_DIAL_SHAPE           3
-#define MESSAGE_KEY_SHOW_DIECIOCHO       4
+#define MESSAGE_KEY_SHAKE_ACTION         4
 #define MESSAGE_KEY_SHOW_SECONDS         5
 #endif
 
@@ -19,15 +19,19 @@
 #define PKEY_TRANSPARENT       1
 #define PKEY_BG_COLOR          2
 #define PKEY_DIAL_SHAPE        3
-#define PKEY_SHOW_DIECIOCHO    4
+#define PKEY_SHAKE_ACTION      4
 #define PKEY_SHOW_SECONDS      5
 
 #define DIAL_SHAPE_HEX         0
 #define DIAL_SHAPE_RECT        1
 
+#define SHAKE_NADA    0
+#define SHAKE_DIEC18  1
+#define SHAKE_SONIDO  2
+
 static int    battery_perc   = 100;
 static bool   s_show_welcome    = true;
-static bool   s_show_dieciocho = true;
+static int    s_shake_action = SHAKE_NADA;
 static bool   s_show_seconds   = false;
 static bool   s_transparent  = true;
 static bool   s_outline      = false;
@@ -84,6 +88,25 @@ static const LocaleDays s_locale_days[] = {
     { "ca", { "DG", "DL", "DT", "DC", "DJ", "DV", "DS" } },  // Català
 };
 #define NUM_LOCALES ((int)(sizeof(s_locale_days) / sizeof(s_locale_days[0])))
+
+static const char *s_hoy_labels[] = {
+    "HOY",  // es
+    "TDY",  // en
+    "HOJ",  // pt
+    "OGG",  // it
+    "HTE",  // de
+    "AJD",  // fr
+    "AVU",  // ca
+};
+
+static const char *get_hoy_label(void) {
+    const char *locale = i18n_get_system_locale();
+    for (int i = 0; i < NUM_LOCALES; i++) {
+        const char *p = s_locale_days[i].prefix;
+        if (strncmp(locale, p, strlen(p)) == 0) return s_hoy_labels[i];
+    }
+    return s_hoy_labels[0]; // fallback: español
+}
 
 // wday: 0=Sunday..6=Saturday (tm_wday order)
 static const char *get_day_abbrev(int wday) {
@@ -434,7 +457,7 @@ static void bg_layer_draw(Layer *layer, GContext *ctx) {
     GFont small_font = fonts_get_system_font(FONT_KEY_GOTHIC_09);
     graphics_context_set_text_color(ctx, GColorBlack);
     if (s_hoy_w > 0 && dieciocho_hoy_visible() && !sonidos_is_scrolling() && (!s_show_seconds || dieciocho_is_active())) {
-        graphics_draw_text(ctx, "HOY",
+        graphics_draw_text(ctx, get_hoy_label(),
             small_font,
             GRect(s_hoy_x, s_hoy_y, s_hoy_w, 12),
             GTextOverflowModeWordWrap, GTextAlignmentCenter, NULL);
@@ -517,9 +540,19 @@ static void update_time(void) {
 }
 
 static void tap_handler(AccelAxisType axis, int32_t direction) {
-    if (!s_show_dieciocho) return;
-    if (sonidos_is_scrolling()) scroll_stop();
-    dieciocho_trigger();
+    if (s_shake_action == SHAKE_DIEC18) {
+        if (sonidos_is_scrolling()) { scroll_stop(); sonidos_song_stop(); }
+        dieciocho_trigger();
+    } else if (s_shake_action == SHAKE_SONIDO) {
+        if (dieciocho_is_active()) dieciocho_teardown();
+        if (sonidos_is_scrolling()) {
+            scroll_stop();
+            sonidos_song_stop();
+        } else {
+            scroll_start();
+            sonidos_song_play();
+        }
+    }
 }
 
 static void bt_handler(bool connected) {
@@ -811,11 +844,11 @@ static void inbox_received_cb(DictionaryIterator *iter, void *ctx) {
         persist_write_int(PKEY_DIAL_SHAPE, s_dial_shape);
         needs_redraw = true;
     }
-    t = dict_find(iter, MESSAGE_KEY_SHOW_DIECIOCHO);
+    t = dict_find(iter, MESSAGE_KEY_SHAKE_ACTION);
     if (t) {
-        s_show_dieciocho = (bool)t->value->int32;
-        persist_write_bool(PKEY_SHOW_DIECIOCHO, s_show_dieciocho);
-        if (s_show_dieciocho) {
+        s_shake_action = (int)t->value->int32;
+        persist_write_int(PKEY_SHAKE_ACTION, s_shake_action);
+        if (s_shake_action != SHAKE_NADA) {
             accel_tap_service_subscribe(tap_handler);
         } else {
             accel_tap_service_unsubscribe();
@@ -892,8 +925,8 @@ static void init(void) {
         ? GColorFromHEX(persist_read_int(PKEY_BG_COLOR)) : GColorDarkGray;
     s_dial_shape = persist_exists(PKEY_DIAL_SHAPE)
         ? persist_read_int(PKEY_DIAL_SHAPE) : DIAL_SHAPE_HEX;
-    s_show_dieciocho = persist_exists(PKEY_SHOW_DIECIOCHO)
-        ? persist_read_bool(PKEY_SHOW_DIECIOCHO) : false;
+    s_shake_action = persist_exists(PKEY_SHAKE_ACTION)
+        ? persist_read_int(PKEY_SHAKE_ACTION) : SHAKE_NADA;
     s_show_seconds = persist_exists(PKEY_SHOW_SECONDS)
         ? persist_read_bool(PKEY_SHOW_SECONDS) : false;
 
@@ -911,7 +944,7 @@ static void init(void) {
     battery_perc = battery_state_service_peek().charge_percent;
     battery_state_service_subscribe(battery_handler);
     tick_timer_service_subscribe(s_show_seconds ? SECOND_UNIT : MINUTE_UNIT, tick_handler);
-    if (s_show_dieciocho) accel_tap_service_subscribe(tap_handler);
+    if (s_shake_action != SHAKE_NADA) accel_tap_service_subscribe(tap_handler);
     connection_service_subscribe((ConnectionHandlers) {
         .pebble_app_connection_handler = bt_handler
     });

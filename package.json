@@ -19,7 +19,7 @@
       "TRANSPARENT_PORTION": 1,
       "BG_COLOR": 2,
       "DIAL_SHAPE": 3,
-      "SHOW_DIECIOCHO": 4,
+      "SHAKE_ACTION": 4,
       "SHOW_SECONDS": 5
     },
     "targetPlatforms": [

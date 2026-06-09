@@ -6,18 +6,25 @@ var config = [
     defaultValue: 'UNO Watchface'
   },
   {
-    type: 'toggle',
-    messageKey: 'SHOW_DIECIOCHO',
-    label: 'Modo 18',
-    description: 'Activar con el movimiento de la muñeca',
-    defaultValue: false
+    type: 'select',
+    messageKey: 'SHAKE_ACTION',
+    label: 'Al sacudir la muñeca',
+    defaultValue: '0',
+    options: [
+      { label: 'Nada',    value: '0' },
+      { label: 'Modo 18', value: '1' },
+      { label: 'Sonido',  value: '2' }
+    ]
   },
   {
-    type: 'toggle',
+    type: 'select',
     messageKey: 'SHOW_SECONDS',
-    label: 'Mostrar segundos',
-    description: 'Reemplaza la fecha con los segundos actuales',
-    defaultValue: false
+    label: 'Números secundarios',
+    defaultValue: '0',
+    options: [
+      { label: 'Mostrar fecha actual', value: '0' },
+      { label: 'Mostrar segundos',     value: '1' }
+    ]
   },
   {
     type: 'submit',
@@ -36,17 +43,17 @@ Pebble.addEventListener('showConfiguration', function() {
 Pebble.addEventListener('webviewclosed', function(e) {
   if (!e || !e.response) return;
 
-  // getSettings(response, false) retorna {SHOW_DIECIOCHO: {value: true/false}}
+  // getSettings(response, false) retorna {SHAKE_ACTION: {value: "0"|"1"|"2"}, ...}
   // el valor está envuelto en {value:...}, hay que acceder a .value
   var settings = clay.getSettings(e.response, false);
   console.log('UNO config raw: ' + JSON.stringify(settings));
 
   var msg = {};
-  if (settings.SHOW_DIECIOCHO !== undefined) {
-    msg[4] = settings.SHOW_DIECIOCHO.value ? 1 : 0;
+  if (settings.SHAKE_ACTION !== undefined) {
+    msg[4] = parseInt(settings.SHAKE_ACTION.value, 10) || 0;
   }
   if (settings.SHOW_SECONDS !== undefined) {
-    msg[5] = settings.SHOW_SECONDS.value ? 1 : 0;
+    msg[5] = parseInt(settings.SHOW_SECONDS.value, 10) || 0;
   }
 
   console.log('UNO config enviando: ' + JSON.stringify(msg));

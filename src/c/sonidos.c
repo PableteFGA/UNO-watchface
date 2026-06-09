@@ -29,6 +29,18 @@ static uint32_t *s_note_ms          = NULL;
 static bool     *s_note_silent      = NULL;
 static uint16_t  s_note_count_total = 0;
 
+// vibración sincronizada por nota
+static uint32_t s_vibe_segs[1];
+
+static void play_vibe_for_note_idx(int idx) {
+    if (idx < 0 || idx >= (int)s_note_count_total) return;
+    vibes_cancel();
+    if (s_note_silent[idx]) return;
+    s_vibe_segs[0] = s_note_ms[idx];
+    VibePattern p = {.durations = s_vibe_segs, .num_segments = 1};
+    vibes_enqueue_custom_pattern(p);
+}
+
 void sonidos_init(TextLayer *hours, TextLayer *minutes, TextLayer *colon,
                   TextLayer *date, Layer *bg,
                   GFont hours_font, GFont digits_font,
@@ -49,6 +61,7 @@ void sonidos_set_song_number(int n) { s_song_number = n; }
 
 void scroll_stop(void) {
     s_scrolling = false;
+    vibes_cancel();
     if (s_scroll_timer) { app_timer_cancel(s_scroll_timer); s_scroll_timer = NULL; }
     text_layer_set_font(s_hours_layer,   s_hours_font);
     text_layer_set_font(s_minutes_layer, s_digits_font);
@@ -87,6 +100,7 @@ static void scroll_step(void *context) {
         scroll_stop();
         return;
     }
+    play_vibe_for_note_idx(s_note_idx);
     s_scroll_timer = app_timer_register(s_note_ms[s_note_idx], scroll_step, NULL);
 }
 
@@ -109,6 +123,7 @@ void scroll_start(void) {
     show_scroll_pos();
     layer_mark_dirty(s_bg_layer);
     uint32_t first_ms = (s_note_count_total > 0) ? s_note_ms[0] : SCROLL_FALLBACK_MS;
+    play_vibe_for_note_idx(0);
     s_scroll_timer = app_timer_register(first_ms, scroll_step, NULL);
 }
 
@@ -199,6 +214,7 @@ void sonidos_song_load(void) {
         if (parsed >= 2) {
             s_note_ms[idx]     = (uint32_t)ms;
             s_note_silent[idx] = (note == 0);
+
 #ifdef PBL_SPEAKER
             s_song_notes[idx] = (SpeakerNote){
                 .midi_note   = (uint8_t)note,
@@ -222,6 +238,7 @@ void sonidos_song_load(void) {
 void sonidos_song_free(void) {
     if (s_note_ms)     { free(s_note_ms);     s_note_ms = NULL; }
     if (s_note_silent) { free(s_note_silent); s_note_silent = NULL; }
+
     s_note_count_total = 0;
 #ifdef PBL_SPEAKER
     if (s_song_notes) { free(s_song_notes); s_song_notes = NULL; }
