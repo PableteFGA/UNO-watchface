@@ -1,87 +1,33 @@
 var Clay = require('pebble-clay');
 
-function buildConfig() {
-  var platform = 'basalt';
-  try { platform = Pebble.getActiveWatchInfo().platform; } catch(e) {}
-
-  var isEmery  = platform === 'emery';
-  var isColor  = platform === 'emery' || platform === 'basalt';
-
-  var items = [
-    {
-      type: 'heading',
-      defaultValue: 'UNO Watchface'
-    },
-    {
-      type: 'toggle',
-      messageKey: 'SHOW_WELCOME',
-      label: 'Mensaje de bienvenida',
-      description: 'Mostrar "DANDO LA HORA – HECHO EN CHILE" al iniciar',
-      defaultValue: false
-    },
-    {
-      type: 'section',
-      items: buildDialSection(isEmery, isColor)
-    },
-    {
-      type: 'submit',
-      defaultValue: 'Guardar'
-    }
-  ];
-
-  return items;
-}
-
-function buildDialSection(isEmery, isColor) {
-  var items = [
-    {
-      type: 'heading',
-      defaultValue: 'Diseño del Dial',
-      size: 2
-    }
-  ];
-
-  if (isColor) {
-    items.push({
-      type: 'toggle',
-      messageKey: 'TRANSPARENT_PORTION',
-      label: 'Porción transparente',
-      description: 'Usar fondo transparente del reloj original',
-      defaultValue: true
-    });
+var config = [
+  {
+    type: 'heading',
+    defaultValue: 'UNO Watchface'
+  },
+  {
+    type: 'toggle',
+    messageKey: 'SHOW_DIECIOCHO',
+    label: 'Modo 18',
+    description: 'Activar con el movimiento de la muñeca',
+    defaultValue: true
+  },
+  {
+    type: 'toggle',
+    messageKey: 'SHOW_SECONDS',
+    label: 'Mostrar segundos',
+    description: 'Reemplaza la fecha con los segundos actuales',
+    defaultValue: false
+  },
+  {
+    type: 'submit',
+    defaultValue: 'Guardar'
   }
+];
 
-  if (isColor) {
-    var colorItem = {
-      type: 'color',
-      messageKey: 'BG_COLOR',
-      label: 'Color de fondo',
-      defaultValue: 'DarkGray',
-      sunlight: true,
-      showIf: '!TRANSPARENT_PORTION'
-    };
-    items.push(colorItem);
-  }
-
-  var shapeItem = {
-    type: 'select',
-    messageKey: 'DIAL_SHAPE',
-    label: 'Diseño de pantalla',
-    defaultValue: '0',
-    options: [
-      { label: 'Hexagonal', value: '0' },
-      { label: 'Rectangular', value: '1' }
-    ]
-  };
-  if (isColor) shapeItem.showIf = '!TRANSPARENT_PORTION';
-  items.push(shapeItem);
-
-  return items;
-}
-
-// autoHandleEvents:false — manejamos showConfiguration y webviewclosed manualmente
-// para evitar que Clay use message_keys (que devuelve void 0 en el bundle)
-var clay = new Clay(buildConfig(), null, { autoHandleEvents: false });
+// autoHandleEvents:false para manejar el envio con keys enteros
+// (evita el bug de message_keys que devuelve void 0 en el bundle)
+var clay = new Clay(config, null, { autoHandleEvents: false });
 
 Pebble.addEventListener('showConfiguration', function() {
   Pebble.openURL(clay.generateUrl());
@@ -90,29 +36,23 @@ Pebble.addEventListener('showConfiguration', function() {
 Pebble.addEventListener('webviewclosed', function(e) {
   if (!e || !e.response) return;
 
-  var raw = e.response;
-  // Clay devuelve JSON URL-encoded; decodificar si no empieza con '{'
-  if (raw.charAt(0) !== '{') {
-    try { raw = decodeURIComponent(raw); } catch(ex) {}
-  }
+  // getSettings(response, false) retorna {SHOW_DIECIOCHO: {value: true/false}}
+  // el valor está envuelto en {value:...}, hay que acceder a .value
+  var settings = clay.getSettings(e.response, false);
+  console.log('UNO config raw: ' + JSON.stringify(settings));
 
-  var settings;
-  try { settings = JSON.parse(raw); } catch(ex) {
-    console.log('UNO config: JSON parse error: ' + ex);
-    return;
-  }
-
-  // Mapeo directo a claves enteras (coinciden con MESSAGE_KEY_* en C)
   var msg = {};
-  if (settings.SHOW_WELCOME        !== undefined) msg[0] = Number(settings.SHOW_WELCOME);
-  if (settings.TRANSPARENT_PORTION !== undefined) msg[1] = Number(settings.TRANSPARENT_PORTION);
-  if (settings.BG_COLOR            !== undefined) msg[2] = Number(settings.BG_COLOR);
-  if (settings.DIAL_SHAPE          !== undefined) msg[3] = parseInt(settings.DIAL_SHAPE, 10);
+  if (settings.SHOW_DIECIOCHO !== undefined) {
+    msg[4] = settings.SHOW_DIECIOCHO.value ? 1 : 0;
+  }
+  if (settings.SHOW_SECONDS !== undefined) {
+    msg[5] = settings.SHOW_SECONDS.value ? 1 : 0;
+  }
 
-  console.log('UNO config sending: ' + JSON.stringify(msg));
+  console.log('UNO config enviando: ' + JSON.stringify(msg));
 
   Pebble.sendAppMessage(msg,
-    function()  { console.log('UNO config: sent OK'); },
-    function(err) { console.log('UNO config: send error: ' + JSON.stringify(err)); }
+    function()    { console.log('UNO config: OK'); },
+    function(err) { console.log('UNO config: error: ' + JSON.stringify(err)); }
   );
 });

@@ -18,7 +18,9 @@
       "SHOW_WELCOME": 0,
       "TRANSPARENT_PORTION": 1,
       "BG_COLOR": 2,
-      "DIAL_SHAPE": 3
+      "DIAL_SHAPE": 3,
+      "SHOW_DIECIOCHO": 4,
+      "SHOW_SECONDS": 5
     },
     "targetPlatforms": [
       "emery",
@@ -73,7 +75,7 @@
         {
           "type": "png",
           "name": "IMG_BG",
-          "file": "images/bg/bg_aplite.png",
+          "file": "images/bg/calibre_aplite.png",
           "targetPlatforms": ["aplite"]
         },
         {
@@ -218,21 +220,21 @@
           "name": "DIGITS_45",
           "file": "fonts/digits.ttf",
           "characterRegex": "[0-9:]",
-          "targetPlatforms": ["basalt"]
+          "targetPlatforms": ["basalt", "aplite"]
         },
         {
           "type": "font",
           "name": "DIGITS_46",
           "file": "fonts/digits.ttf",
           "characterRegex": "[0-9:A-Z -]",
-          "targetPlatforms": ["basalt"]
+          "targetPlatforms": ["basalt", "aplite"]
         },
         {
           "type": "font",
           "name": "DIGITS_22",
           "file": "fonts/digits.ttf",
           "characterRegex": "[0-9:]",
-          "targetPlatforms": ["basalt"]
+          "targetPlatforms": ["basalt", "aplite"]
         },
         {
           "type": "font",
