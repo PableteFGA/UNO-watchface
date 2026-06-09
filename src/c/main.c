@@ -892,7 +892,7 @@ static void init(void) {
     s_dial_shape = persist_exists(PKEY_DIAL_SHAPE)
         ? persist_read_int(PKEY_DIAL_SHAPE) : DIAL_SHAPE_HEX;
     s_show_dieciocho = persist_exists(PKEY_SHOW_DIECIOCHO)
-        ? persist_read_bool(PKEY_SHOW_DIECIOCHO) : true;
+        ? persist_read_bool(PKEY_SHOW_DIECIOCHO) : false;
     s_show_seconds = persist_exists(PKEY_SHOW_SECONDS)
         ? persist_read_bool(PKEY_SHOW_SECONDS) : false;
 

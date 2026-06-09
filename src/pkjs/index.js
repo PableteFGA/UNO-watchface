@@ -10,7 +10,7 @@ var config = [
     messageKey: 'SHOW_DIECIOCHO',
     label: 'Modo 18',
     description: 'Activar con el movimiento de la muñeca',
-    defaultValue: true
+    defaultValue: false
   },
   {
     type: 'toggle',
