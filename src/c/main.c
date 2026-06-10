@@ -894,6 +894,9 @@ static void main_window_appear(Window *window) {
         touch_service_subscribe(touch_handler, NULL);
     }
 #endif
+    battery_perc = battery_state_service_peek().charge_percent;
+    if (s_cuarzo_cover_layer) update_cuarzo_cover();
+
     if (s_welcome_action == SHAKE_DIEC18) {
         dieciocho_trigger();
     } else if (s_welcome_action == SHAKE_SONIDO) {
@@ -933,9 +936,9 @@ static void init(void) {
         .appear    = main_window_appear,
         .disappear = main_window_disappear,
     });
-    window_stack_push(s_main_window, true);
     battery_perc = battery_state_service_peek().charge_percent;
     battery_state_service_subscribe(battery_handler);
+    window_stack_push(s_main_window, true);
     tick_timer_service_subscribe(s_show_seconds ? SECOND_UNIT : MINUTE_UNIT, tick_handler);
     if (s_shake_action != SHAKE_NADA) accel_tap_service_subscribe(tap_handler);
     connection_service_subscribe((ConnectionHandlers) {
