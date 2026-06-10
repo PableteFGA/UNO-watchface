@@ -550,6 +550,9 @@ static void tap_handler(AccelAxisType axis, int32_t direction) {
 }
 
 static void bt_handler(bool connected) {
+    if (!connected && s_bt_connected) {
+        vibes_long_pulse();
+    }
     s_bt_connected = connected;
     layer_mark_dirty(s_bg_layer);
 }
@@ -895,7 +898,7 @@ static void main_window_appear(Window *window) {
     }
 #endif
     battery_perc   = battery_state_service_peek().charge_percent;
-    s_bt_connected = connection_service_peek_pebble_app_connection();
+    s_bt_connected = bluetooth_connection_service_peek();
     if (s_cuarzo_cover_layer) update_cuarzo_cover();
     layer_mark_dirty(s_bg_layer);
 
@@ -939,11 +942,9 @@ static void init(void) {
         .disappear = main_window_disappear,
     });
     battery_perc   = battery_state_service_peek().charge_percent;
-    s_bt_connected = connection_service_peek_pebble_app_connection();
+    s_bt_connected = bluetooth_connection_service_peek();
     battery_state_service_subscribe(battery_handler);
-    connection_service_subscribe((ConnectionHandlers) {
-        .pebble_app_connection_handler = bt_handler
-    });
+    bluetooth_connection_service_subscribe(bt_handler);
     window_stack_push(s_main_window, true);
     tick_timer_service_subscribe(s_show_seconds ? SECOND_UNIT : MINUTE_UNIT, tick_handler);
     if (s_shake_action != SHAKE_NADA) accel_tap_service_subscribe(tap_handler);
@@ -954,7 +955,7 @@ static void deinit(void) {
     battery_state_service_unsubscribe();
     tick_timer_service_unsubscribe();
     accel_tap_service_unsubscribe();
-    connection_service_unsubscribe();
+    bluetooth_connection_service_unsubscribe();
     window_destroy(s_main_window);
 }
 
