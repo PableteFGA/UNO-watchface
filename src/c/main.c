@@ -894,8 +894,10 @@ static void main_window_appear(Window *window) {
         touch_service_subscribe(touch_handler, NULL);
     }
 #endif
-    battery_perc = battery_state_service_peek().charge_percent;
+    battery_perc   = battery_state_service_peek().charge_percent;
+    s_bt_connected = connection_service_peek_pebble_app_connection();
     if (s_cuarzo_cover_layer) update_cuarzo_cover();
+    layer_mark_dirty(s_bg_layer);
 
     if (s_welcome_action == SHAKE_DIEC18) {
         dieciocho_trigger();
@@ -936,15 +938,15 @@ static void init(void) {
         .appear    = main_window_appear,
         .disappear = main_window_disappear,
     });
-    battery_perc = battery_state_service_peek().charge_percent;
+    battery_perc   = battery_state_service_peek().charge_percent;
+    s_bt_connected = connection_service_peek_pebble_app_connection();
     battery_state_service_subscribe(battery_handler);
-    window_stack_push(s_main_window, true);
-    tick_timer_service_subscribe(s_show_seconds ? SECOND_UNIT : MINUTE_UNIT, tick_handler);
-    if (s_shake_action != SHAKE_NADA) accel_tap_service_subscribe(tap_handler);
     connection_service_subscribe((ConnectionHandlers) {
         .pebble_app_connection_handler = bt_handler
     });
-    s_bt_connected = connection_service_peek_pebble_app_connection();
+    window_stack_push(s_main_window, true);
+    tick_timer_service_subscribe(s_show_seconds ? SECOND_UNIT : MINUTE_UNIT, tick_handler);
+    if (s_shake_action != SHAKE_NADA) accel_tap_service_subscribe(tap_handler);
 }
 
 static void deinit(void) {
