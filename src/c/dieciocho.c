@@ -16,6 +16,7 @@ static AppTimer *s_countdown_timer = NULL;
 static AppTimer *s_blink_timer     = NULL;
 static bool      s_hoy_blink       = false;
 static int       s_countdown_token = 0;
+static int       s_duration_ms     = 4000;
 
 void dieciocho_init(TextLayer *hours, TextLayer *minutes, TextLayer *date,
                     TextLayer *colon, Layer *bg,
@@ -34,23 +35,28 @@ void dieciocho_init(TextLayer *hours, TextLayer *minutes, TextLayer *date,
 
 bool dieciocho_is_active(void)   { return s_active; }
 bool dieciocho_hoy_visible(void) { return !s_active || s_hoy_blink; }
+void dieciocho_set_duration(int ms) { s_duration_ms = ms; }
 
 static int days_to_sept18(void) {
     time_t now = time(NULL);
     struct tm *t = localtime(&now);
-    struct tm target = {0};
-    target.tm_year  = t->tm_year;
-    target.tm_mon   = 8;
-    target.tm_mday  = 18;
+
+    struct tm today = *t;
+    today.tm_hour = 12; today.tm_min = 0; today.tm_sec = 0; today.tm_isdst = -1;
+    time_t t_today = mktime(&today);
+
+    struct tm target = today;
+    target.tm_mon  = 8;
+    target.tm_mday = 18;
     target.tm_isdst = -1;
     time_t t_target = mktime(&target);
-    int days = (int)((t_target - now) / 86400);
-    if (days < 0) {
-        target.tm_year = t->tm_year + 1;
+
+    if (t_target <= t_today) {
+        target.tm_year++;
         t_target = mktime(&target);
-        days = (int)((t_target - now) / 86400);
     }
-    return days;
+
+    return (int)((t_target - t_today + 43200) / 86400);
 }
 
 static void blink_timer_callback(void *context) {
@@ -107,7 +113,7 @@ void dieciocho_trigger(void) {
     if (s_countdown_timer) app_timer_cancel(s_countdown_timer);
     s_countdown_token++;
     show_countdown();
-    s_countdown_timer = app_timer_register(4000, countdown_timer_callback,
+    s_countdown_timer = app_timer_register(s_duration_ms, countdown_timer_callback,
                                            (void *)(intptr_t)s_countdown_token);
 }
 

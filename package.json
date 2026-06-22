@@ -20,7 +20,8 @@
       "BG_COLOR": 2,
       "DIAL_SHAPE": 3,
       "SHAKE_ACTION": 4,
-      "SHOW_SECONDS": 5
+      "SHOW_SECONDS": 5,
+      "DIEC18_DURATION": 6
     },
     "targetPlatforms": [
       "emery",

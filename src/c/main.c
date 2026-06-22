@@ -13,6 +13,7 @@
 #define MESSAGE_KEY_DIAL_SHAPE           3
 #define MESSAGE_KEY_SHAKE_ACTION         4
 #define MESSAGE_KEY_SHOW_SECONDS         5
+#define MESSAGE_KEY_DIEC18_DURATION      6
 #endif
 
 #define PKEY_WELCOME_ACTION    0
@@ -21,6 +22,8 @@
 #define PKEY_DIAL_SHAPE        3
 #define PKEY_SHAKE_ACTION      4
 #define PKEY_SHOW_SECONDS      5
+#define PKEY_BATTERY_PERC      6
+#define PKEY_DIEC18_DURATION   7
 
 #define DIAL_SHAPE_HEX         0
 #define DIAL_SHAPE_RECT        1
@@ -29,10 +32,11 @@
 #define SHAKE_DIEC18  1
 #define SHAKE_SONIDO  2
 
-static int    battery_perc   = 100;
+static int    battery_perc      = 100;
 static int    s_welcome_action  = SHAKE_NADA;
-static int    s_shake_action = SHAKE_NADA;
-static bool   s_show_seconds   = false;
+static int    s_shake_action    = SHAKE_NADA;
+static bool   s_show_seconds    = false;
+static int    s_diec18_duration = 4;
 static bool   s_transparent  = true;
 
 static GColor s_bg_color;
@@ -568,6 +572,7 @@ static void update_cuarzo_cover(void);
 
 static void battery_handler(BatteryChargeState state) {
     battery_perc = state.charge_percent;
+    persist_write_int(PKEY_BATTERY_PERC, battery_perc);
 #if defined(PBL_PLATFORM_EMERY) || defined(PBL_PLATFORM_BASALT) || defined(PBL_PLATFORM_APLITE) || defined(PBL_PLATFORM_GABBRO)
     if (s_cuarzo_cover_layer) update_cuarzo_cover();
 #endif
@@ -855,6 +860,14 @@ static void inbox_received_cb(DictionaryIterator *iter, void *ctx) {
             needs_redraw = true;
         }
     }
+    t = dict_find(iter, MESSAGE_KEY_DIEC18_DURATION);
+    if (t) {
+        s_diec18_duration = (int)t->value->int32;
+        if (s_diec18_duration < 1) s_diec18_duration = 1;
+        if (s_diec18_duration > 5) s_diec18_duration = 5;
+        persist_write_int(PKEY_DIEC18_DURATION, s_diec18_duration);
+        dieciocho_set_duration(s_diec18_duration * 1000);
+    }
     if (needs_redraw) layer_mark_dirty(s_bg_layer);
 }
 
@@ -930,6 +943,9 @@ static void init(void) {
         ? persist_read_int(PKEY_SHAKE_ACTION) : SHAKE_NADA;
     s_show_seconds = persist_exists(PKEY_SHOW_SECONDS)
         ? persist_read_bool(PKEY_SHOW_SECONDS) : false;
+    s_diec18_duration = persist_exists(PKEY_DIEC18_DURATION)
+        ? persist_read_int(PKEY_DIEC18_DURATION) : 4;
+    dieciocho_set_duration(s_diec18_duration * 1000);
 
     app_message_register_inbox_received(inbox_received_cb);
     app_message_open(256, 64);
@@ -941,7 +957,9 @@ static void init(void) {
         .appear    = main_window_appear,
         .disappear = main_window_disappear,
     });
-    battery_perc   = battery_state_service_peek().charge_percent;
+    battery_perc   = persist_exists(PKEY_BATTERY_PERC)
+        ? persist_read_int(PKEY_BATTERY_PERC)
+        : battery_state_service_peek().charge_percent;
     s_bt_connected = bluetooth_connection_service_peek();
     battery_state_service_subscribe(battery_handler);
     bluetooth_connection_service_subscribe(bt_handler);
