@@ -14,16 +14,20 @@
 #define MESSAGE_KEY_SHAKE_ACTION         4
 #define MESSAGE_KEY_SHOW_SECONDS         5
 #define MESSAGE_KEY_DIEC18_DURATION      6
+#define MESSAGE_KEY_DIEC18_TARGET_MONTH  7
+#define MESSAGE_KEY_DIEC18_TARGET_DAY    8
 #endif
 
-#define PKEY_WELCOME_ACTION    0
-#define PKEY_TRANSPARENT       1
-#define PKEY_BG_COLOR          2
-#define PKEY_DIAL_SHAPE        3
-#define PKEY_SHAKE_ACTION      4
-#define PKEY_SHOW_SECONDS      5
-#define PKEY_BATTERY_PERC      6
-#define PKEY_DIEC18_DURATION   7
+#define PKEY_WELCOME_ACTION      0
+#define PKEY_TRANSPARENT         1
+#define PKEY_BG_COLOR            2
+#define PKEY_DIAL_SHAPE          3
+#define PKEY_SHAKE_ACTION        4
+#define PKEY_SHOW_SECONDS        5
+#define PKEY_BATTERY_PERC        6
+#define PKEY_DIEC18_DURATION     7
+#define PKEY_DIEC18_TARGET_MONTH 8
+#define PKEY_DIEC18_TARGET_DAY   9
 
 #define DIAL_SHAPE_HEX         0
 #define DIAL_SHAPE_RECT        1
@@ -33,10 +37,12 @@
 #define SHAKE_SONIDO  2
 
 static int    battery_perc      = 100;
-static int    s_welcome_action  = SHAKE_NADA;
-static int    s_shake_action    = SHAKE_NADA;
-static bool   s_show_seconds    = false;
-static int    s_diec18_duration = 4;
+static int    s_welcome_action       = SHAKE_NADA;
+static int    s_shake_action         = SHAKE_NADA;
+static bool   s_show_seconds         = false;
+static int    s_diec18_duration      = 4;
+static int    s_diec18_target_month  = 9;   // 1-indexado; 9 = septiembre
+static int    s_diec18_target_day    = 18;  // día del mes
 static bool   s_transparent  = true;
 
 static GColor s_bg_color;
@@ -868,6 +874,20 @@ static void inbox_received_cb(DictionaryIterator *iter, void *ctx) {
         persist_write_int(PKEY_DIEC18_DURATION, s_diec18_duration);
         dieciocho_set_duration(s_diec18_duration * 1000);
     }
+    t = dict_find(iter, MESSAGE_KEY_DIEC18_TARGET_MONTH);
+    if (t) {
+        int m = (int)t->value->int32;
+        s_diec18_target_month = (m >= 1 && m <= 12) ? m : 9;
+        persist_write_int(PKEY_DIEC18_TARGET_MONTH, s_diec18_target_month);
+        dieciocho_set_target_date(s_diec18_target_month, s_diec18_target_day);
+    }
+    t = dict_find(iter, MESSAGE_KEY_DIEC18_TARGET_DAY);
+    if (t) {
+        int d = (int)t->value->int32;
+        s_diec18_target_day = (d >= 1 && d <= 31) ? d : 18;
+        persist_write_int(PKEY_DIEC18_TARGET_DAY, s_diec18_target_day);
+        dieciocho_set_target_date(s_diec18_target_month, s_diec18_target_day);
+    }
     if (needs_redraw) layer_mark_dirty(s_bg_layer);
 }
 
@@ -946,6 +966,11 @@ static void init(void) {
     s_diec18_duration = persist_exists(PKEY_DIEC18_DURATION)
         ? persist_read_int(PKEY_DIEC18_DURATION) : 4;
     dieciocho_set_duration(s_diec18_duration * 1000);
+    s_diec18_target_month = persist_exists(PKEY_DIEC18_TARGET_MONTH)
+        ? persist_read_int(PKEY_DIEC18_TARGET_MONTH) : 9;
+    s_diec18_target_day = persist_exists(PKEY_DIEC18_TARGET_DAY)
+        ? persist_read_int(PKEY_DIEC18_TARGET_DAY) : 18;
+    dieciocho_set_target_date(s_diec18_target_month, s_diec18_target_day);
 
     app_message_register_inbox_received(inbox_received_cb);
     app_message_open(256, 64);

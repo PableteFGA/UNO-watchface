@@ -21,7 +21,9 @@
       "DIAL_SHAPE": 3,
       "SHAKE_ACTION": 4,
       "SHOW_SECONDS": 5,
-      "DIEC18_DURATION": 6
+      "DIEC18_DURATION": 6,
+      "DIEC18_TARGET_MONTH": 7,
+      "DIEC18_TARGET_DAY": 8
     },
     "targetPlatforms": [
       "emery",

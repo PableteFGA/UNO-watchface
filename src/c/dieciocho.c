@@ -17,6 +17,8 @@ static AppTimer *s_blink_timer     = NULL;
 static bool      s_hoy_blink       = false;
 static int       s_countdown_token = 0;
 static int       s_duration_ms     = 4000;
+static int       s_target_month    = 9;   // 1-indexed; 9 = septiembre (por defecto)
+static int       s_target_day      = 18;  // día del mes (por defecto 18)
 
 void dieciocho_init(TextLayer *hours, TextLayer *minutes, TextLayer *date,
                     TextLayer *colon, Layer *bg,
@@ -37,7 +39,12 @@ bool dieciocho_is_active(void)   { return s_active; }
 bool dieciocho_hoy_visible(void) { return !s_active || s_hoy_blink; }
 void dieciocho_set_duration(int ms) { s_duration_ms = ms; }
 
-static int days_to_sept18(void) {
+void dieciocho_set_target_date(int month, int day) {
+    s_target_month = (month >= 1 && month <= 12) ? month : 9;
+    s_target_day   = (day   >= 1 && day   <= 31) ? day   : 18;
+}
+
+static int days_to_target_date(void) {
     time_t now = time(NULL);
     struct tm *t = localtime(&now);
 
@@ -46,8 +53,8 @@ static int days_to_sept18(void) {
     time_t t_today = mktime(&today);
 
     struct tm target = today;
-    target.tm_mon  = 8;
-    target.tm_mday = 18;
+    target.tm_mon  = s_target_month - 1;  // tm_mon es 0-indexado
+    target.tm_mday = s_target_day;
     target.tm_isdst = -1;
     time_t t_target = mktime(&target);
 
@@ -80,7 +87,7 @@ static void countdown_timer_callback(void *context) {
 
 static void show_countdown(void) {
     s_active = true;
-    int days      = days_to_sept18();
+    int days      = days_to_target_date();
     int hundreds  = days / 100;
     int remainder = days % 100;
     if (hundreds > 0) {
@@ -89,7 +96,7 @@ static void show_countdown(void) {
         s_hours_buf[0] = '\0';
     }
     snprintf(s_minutes_buf, 3, "%02d", remainder);
-    snprintf(s_date_buf,    3, "18");
+    snprintf(s_date_buf,    3, "%d", s_target_day);
     layer_set_hidden(text_layer_get_layer(s_colon_layer), true);
     text_layer_set_text(s_hours_layer,   s_hours_buf);
     text_layer_set_text(s_minutes_layer, s_minutes_buf);

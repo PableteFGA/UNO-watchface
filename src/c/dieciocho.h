@@ -9,5 +9,6 @@ void dieciocho_init(TextLayer *hours, TextLayer *minutes, TextLayer *date,
 bool dieciocho_is_active(void);
 bool dieciocho_hoy_visible(void);
 void dieciocho_set_duration(int ms);
+void dieciocho_set_target_date(int month, int day);
 void dieciocho_trigger(void);
 void dieciocho_teardown(void);
